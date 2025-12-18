@@ -10,6 +10,8 @@ use i2cdev::core::I2CDevice;
 use std::time::Duration;
 use zerocopy::IntoBytes;
 
+pub const BNO_055_I2C_ADDR: u8 = 0x28;
+
 /// BNO-055 sensor
 pub struct Bno055<Dev: I2CDevice> {
     device: Dev,
@@ -121,7 +123,15 @@ impl<Dev: I2CDevice> Bno055<Dev> {
 
 #[repr(C)]
 #[derive(
-    Debug, Default, PartialEq, Eq, zerocopy::FromBytes, zerocopy::IntoBytes, zerocopy::Immutable,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    zerocopy::FromBytes,
+    zerocopy::IntoBytes,
+    zerocopy::Immutable,
+    serde::Serialize,
+    serde::Deserialize,
 )]
 pub struct SensorData {
     acc_x: u16,
@@ -157,7 +167,15 @@ const _: () = assert!(size_of::<SensorData>() == addresses::SENSOR_DATA_LENGTH a
 
 #[repr(C)]
 #[derive(
-    Debug, Default, PartialEq, Eq, zerocopy::IntoBytes, zerocopy::FromBytes, zerocopy::Immutable,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    zerocopy::IntoBytes,
+    zerocopy::FromBytes,
+    zerocopy::Immutable,
+    serde::Serialize,
+    serde::Deserialize,
 )]
 pub struct SensorConfig {
     acc_offset_x_lsb: u8,

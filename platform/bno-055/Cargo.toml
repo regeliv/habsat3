@@ -8,3 +8,6 @@ i2cdev = "0.6.2"
 zerocopy = { version = "0.8.31", features = [ "derive"] }
 bitbybit = "1.4.0"
 arbitrary-int = "2.0.0"
+serde = "1.0.228"
+serde_json = "1.0.145"
+
