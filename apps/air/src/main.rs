@@ -10,9 +10,17 @@ use axum::{
 use bno_055::{BNO_055_I2C_ADDR, SensorConfig, SensorData};
 use chrono::{DateTime, Local};
 use i2cdev::linux::{LinuxI2CDevice, LinuxI2CError};
-use std::time::Duration;
-use tokio::{net::TcpListener, time::Instant};
-use tracing::info;
+use std::{num::NonZero, time::Duration};
+use tokio::{
+    net::TcpListener,
+    sync::broadcast::{self, error::RecvError},
+    time::Instant,
+};
+use tracing::{info, warn};
+
+use crate::heartbeat::Tick;
+
+mod heartbeat;
 
 async fn index() -> Html<&'static str> {
     Html(
@@ -103,6 +111,11 @@ async fn main() {
         bno_readings: bno_rx,
     };
 
+    let mut ms100_heartbeat = heartbeat::Heartbeat::new(Duration::from_millis(100));
+    let rx_every_100ms = ms100_heartbeat.rx_every_n_beats(NonZero::new(1).unwrap());
+
+    tokio::spawn(async move { ms100_heartbeat.run().await });
+
     tokio::spawn(async move {
         info!("Started server time task");
         loop {
@@ -125,7 +138,7 @@ async fn main() {
         serde_json::from_str::<SensorConfig>(&file).unwrap()
     };
 
-    tokio::spawn(bno_task(bno_sensor_config, bno_tx));
+    tokio::spawn(bno_task(bno_sensor_config, rx_every_100ms, bno_tx));
 
     let app = Router::new()
         .route("/", get(index))
@@ -138,21 +151,36 @@ async fn main() {
 
 async fn bno_task(
     bno_sensor_config: SensorConfig,
+    mut heartbeat: broadcast::Receiver<Tick>,
     bno_tx: kanal::AsyncSender<SensorData>,
 ) -> Result<(), LinuxI2CError> {
     info!("Started BNO-055 task");
+
     let dev = LinuxI2CDevice::new("/dev/i2c-1", BNO_055_I2C_ADDR as u16)?;
-    info!("BNO-055 created");
 
     let mut bno = bno_055::Bno055::new(dev)?;
+    info!("BNO-055 created");
+
     bno.set_sensor_config(&bno_sensor_config)?;
     info!("BNO-055 config set to {:?}", bno_sensor_config);
+
     bno.set_operating_mode(bno_055::OperatingMode::NDOF_FMC_OFF)?;
 
     loop {
-        let data = bno.get_sensor_data()?;
-        info!("BNO-055 got sensor data {:?}", data);
-        _ = bno_tx.send(data).await;
-        tokio::time::sleep(Duration::from_millis(500)).await;
+        match heartbeat.recv().await {
+            Ok(_) => {
+                let data = bno.get_sensor_data()?;
+                info!("BNO-055 got sensor data {:?}", data);
+                _ = bno_tx.send(data).await;
+            }
+
+            Err(RecvError::Lagged(_)) => {
+                warn!("Skipped a beat");
+            }
+
+            Err(RecvError::Closed) => {
+                unreachable!("Heartbeat should never stop ticking while a task is running");
+            }
+        }
     }
 }
