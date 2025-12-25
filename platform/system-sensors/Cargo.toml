@@ -1,0 +1,12 @@
+[package]
+name = "system-sensors"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tokio = "1.48.0"
+uom = "0.37.0"
+rustix = { version = "1.1.2", features = [ "fs" ] }
+
+[dev-dependencies]
+tempfile = "3.23.0"

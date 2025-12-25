@@ -132,6 +132,7 @@ impl<Dev: I2CDevice> Bno055<Dev> {
     zerocopy::Immutable,
     serde::Serialize,
     serde::Deserialize,
+    Clone,
 )]
 pub struct SensorData {
     acc_x: u16,

@@ -5,6 +5,7 @@ use std::{
 };
 
 use tokio::sync::broadcast;
+use tracing::info;
 
 fn unix_time() -> Duration {
     SystemTime::now()
@@ -39,6 +40,10 @@ impl Heartbeat {
     }
 
     pub async fn run(&self) {
+        info!(
+            "Started heartbeat. Interval: {}ms",
+            self.interval.as_millis()
+        );
         let mut ticks = 0usize;
 
         let mut beat =
