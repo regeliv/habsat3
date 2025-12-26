@@ -2,7 +2,7 @@
   description = "Habsat flake";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
+    nixpkgs.url = "github:nixos/nixpkgs?ref=staging-next";
     rust-overlay = {
       url = "github:oxalica/rust-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -32,11 +32,14 @@
         {
           mkShell,
           pkg-config,
-          qemu,
           stdenv,
-          glibc,
+          qemu,
+          llvmPackages,
+          just,
+          mold,
+          libcamera,
         }:
-        mkShell {
+        mkShell.override { inherit stdenv; } {
           nativeBuildInputs = [
             (rust-bin.stable.latest.default.override {
               extensions = [
@@ -45,15 +48,17 @@
               ];
             })
             pkg-config
+            llvmPackages.libclang
+            just
           ];
 
-          depsBuildBuild = [ qemu ];
-
-          buildInputs = [ glibc.static ];
+          buildInputs = [
+            libcamera
+          ];
 
           env = {
-            CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER = "${stdenv.cc.targetPrefix}cc";
-            CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER = "qemu-aarch64";
+            LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
+            BINDGEN_EXTRA_CLANG_ARGS = "-isystem ${stdenv.cc.cc}/include/c++/${stdenv.cc.version}/${stdenv.targetPlatform.config} -isystem ${stdenv.cc.cc}/include/c++/${stdenv.cc.version} -isystem ${stdenv.cc.libc.dev}/include";
           };
         }
       ) { };
