@@ -9,19 +9,26 @@ use axum::{
 };
 use bno_055::SensorConfig;
 use kanal::{AsyncReceiver, AsyncSender};
+use mimalloc::MiMalloc;
 use std::{num::NonZero, time::Duration};
 use system_sensors::{FilesystemUsageInfo, MemoryUsageInfo};
 use tokio::net::TcpListener;
+use tokio_util::task::LocalPoolHandle;
 use tracing::{Level, info};
 use uom::si::f64::ThermodynamicTemperature;
 
 use crate::{
+    camera::camera_task,
     heartbeat::Tick,
     sensor_tasks::{Data, RxDataChannels, bno_task, data_collector, system_stats},
 };
 
+mod camera;
 mod heartbeat;
 mod sensor_tasks;
+
+#[global_allocator]
+static GLOBAL: MiMalloc = mimalloc::MiMalloc;
 
 async fn index() -> Html<&'static str> {
     Html(
@@ -130,6 +137,8 @@ async fn main() {
 
     let listener = TcpListener::bind("0.0.0.0:3000").await.unwrap();
 
+    let pool = LocalPoolHandle::new(1);
+
     _ = tokio::join!(
         ms100_heartbeat.run(),
         bno_task(bno_sensor_config, rx_every_100ms, bno_channel.tx),
@@ -140,6 +149,7 @@ async fn main() {
             fs_usage_channel.tx,
             mem_usage_channel.tx
         ),
+        pool.spawn_pinned(camera_task),
         axum::serve(listener, app)
     );
 }
