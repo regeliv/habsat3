@@ -35,6 +35,7 @@
           stdenv,
           qemu,
           llvmPackages,
+          cmake,
           just,
           mold,
           libcamera,
@@ -50,6 +51,7 @@
             pkg-config
             llvmPackages.libclang
             just
+            cmake
           ];
 
           buildInputs = [

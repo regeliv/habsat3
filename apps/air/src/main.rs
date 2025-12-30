@@ -137,19 +137,32 @@ async fn main() {
 
     let listener = TcpListener::bind("0.0.0.0:3000").await.unwrap();
 
-    let pool = LocalPoolHandle::new(1);
+    // `CameraManager` in `libcamera-rs` is not `Send`, so we have to spawn a task pinned to one
+    // thread, `LocalPoolHandle` offers this facility.
+    let camera_pool = LocalPoolHandle::new(1);
+
+    // I2C failures seem to interact badly with async filesystem operations on the same thread,
+    // namely they seem to cause file `open` and file `read` to never be polled, thus blocking
+    // tasks depending on these operations. Interestingly, async `interval` continues to run
+    // suggesting that it is not just a simple runtime block causing this lock of polling.
+    // More interestingly, the issue seems to disappear on musl.
+    //
+    // Therefore, we move i2c tasks to a different thread using `LocalPoolHandle`. We don't use
+    // `tokio::spawn`, because it does not guarantee that a task gets spawned (and polled) on a
+    // different thread due to tokio's work-stealing nature
+    let i2c_pool = LocalPoolHandle::new(1);
 
     _ = tokio::join!(
         ms100_heartbeat.run(),
-        bno_task(bno_sensor_config, rx_every_100ms, bno_channel.tx),
+        i2c_pool.spawn_pinned(async || bno_task(bno_sensor_config, rx_every_100ms, bno_channel.tx)),
         data_collector(rx_channels, data_channel.tx),
         system_stats(
-            rx_every_10s,
+            rx_every_10s.resubscribe(),
             cpu_temp_channel.tx,
             fs_usage_channel.tx,
             mem_usage_channel.tx
         ),
-        pool.spawn_pinned(camera_task),
+        camera_pool.spawn_pinned(|| camera_task(rx_every_10s)),
         axum::serve(listener, app)
     );
 }
