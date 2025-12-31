@@ -16,7 +16,7 @@ use uom::si::{
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MemoryUsageInfo {
     pub total: Information,
-    pub free: Information,
+    pub available: Information,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -114,9 +114,9 @@ impl MemoryUsage {
     pub async fn read(&mut self) -> io::Result<MemoryUsageInfo> {
         self.meminfo_file.seek(SeekFrom::Start(0)).await?;
 
-        // We use very small capcacity, because the first two meminfo lines are likely to be less
-        // than 80 bytes
-        let mut buf_reader = BufReader::with_capacity(80, &mut self.meminfo_file);
+        // We use very small capcacity, because the first three meminfo lines are likely to be less
+        // than 120 bytes
+        let mut buf_reader = BufReader::with_capacity(120, &mut self.meminfo_file);
 
         let mut line = String::with_capacity(40);
 
@@ -126,7 +126,11 @@ impl MemoryUsage {
         };
         line.clear();
 
-        let mem_free = {
+        // Skip `MemFree`
+        buf_reader.read_line(&mut line).await?;
+        line.clear();
+
+        let mem_available = {
             buf_reader.read_line(&mut line).await?;
             parse_meminfo_line(&line).map_err(|_| io::Error::from(io::ErrorKind::InvalidInput))?
         };
@@ -134,7 +138,7 @@ impl MemoryUsage {
 
         Ok(MemoryUsageInfo {
             total: mem_total,
-            free: mem_free,
+            available: mem_available,
         })
     }
 }
@@ -266,7 +270,7 @@ mod tests {
     #[tokio::test]
     async fn test_memory_usage() {
         let mut file = tempfile::tempfile().unwrap();
-        file.write_all(b"MemTotal:       64866384 kB\nMemFree:        34343068 kB\n")
+        file.write_all(b"MemTotal:       64866384 kB\nMemFree:        34343068 kB\nMemAvailable:     296640 kB\n")
             .unwrap();
 
         let mut memory_usage = MemoryUsage::new(File::from_std(file));
@@ -275,7 +279,7 @@ mod tests {
             memory_usage.read().await.unwrap(),
             MemoryUsageInfo {
                 total: uom::si::f64::Information::new::<kibibyte>(64866384_f64),
-                free: uom::si::f64::Information::new::<kibibyte>(34343068_f64),
+                available: uom::si::f64::Information::new::<kibibyte>(296640_f64),
             }
         );
 
@@ -283,7 +287,7 @@ mod tests {
             memory_usage.read().await.unwrap(),
             MemoryUsageInfo {
                 total: uom::si::f64::Information::new::<kibibyte>(64866384_f64),
-                free: uom::si::f64::Information::new::<kibibyte>(34343068_f64),
+                available: uom::si::f64::Information::new::<kibibyte>(296640_f64),
             }
         );
     }

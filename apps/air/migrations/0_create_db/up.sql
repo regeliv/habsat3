@@ -38,7 +38,7 @@ create table memory_usage (
 
   timestamp double not null,
 
-  free_mib double not null,
+  available_mib double not null,
   total_mib double not null
 );
 

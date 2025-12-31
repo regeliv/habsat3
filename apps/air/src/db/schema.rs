@@ -50,7 +50,7 @@ diesel::table! {
     memory_usage (id) {
         id -> Integer,
         timestamp -> Double,
-        free_mib -> Double,
+        available_mib -> Double,
         total_mib -> Double,
     }
 }

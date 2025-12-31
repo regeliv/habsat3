@@ -18,7 +18,7 @@ pub struct NewFsUsage {
 #[diesel(table_name = crate::db::schema::memory_usage)]
 pub struct NewMemoryUsage {
     pub timestamp: f64,
-    pub free_mib: f64,
+    pub available_mib: f64,
     pub total_mib: f64,
 }
 
@@ -79,7 +79,7 @@ impl NewFromTimestamped for NewMemoryUsage {
     fn new_from_timestamped(data: &Timestamped<Self::Source>) -> Self {
         Self {
             timestamp: data.timestamp.as_secs(),
-            free_mib: data.data.free.get::<mebibyte>(),
+            available_mib: data.data.available.get::<mebibyte>(),
             total_mib: data.data.total.get::<mebibyte>(),
         }
     }
