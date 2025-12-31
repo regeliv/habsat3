@@ -33,6 +33,23 @@ create table bno_sensor_data (
     grv_z integer not null
 );
 
+create table tel0157_readings (
+  id integer primary key autoincrement not null,
+
+  timestamp double not null,
+
+  latitude_degrees double not null,
+  longitude_degrees double not null,
+
+  course_over_ground_degrees double not null,
+
+  speed_over_ground_meters_per_second double not null,
+
+  altitude_meters double not null,
+
+  satellites integer not null
+);
+
 create table memory_usage (
   id integer primary key autoincrement not null,
 

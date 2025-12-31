@@ -1,7 +1,8 @@
 use diesel::prelude::*;
 use system_sensors::{FilesystemUsageInfo, MemoryUsageInfo};
 use uom::si::{
-    f64::ThermodynamicTemperature, information::mebibyte, thermodynamic_temperature::degree_celsius,
+    angle::degree, f64::ThermodynamicTemperature, information::mebibyte, length::meter,
+    thermodynamic_temperature::degree_celsius, velocity::meter_per_second,
 };
 
 use crate::types::Timestamped;
@@ -55,6 +56,18 @@ pub struct NewBnoReading {
     pub grv_x: i32,
     pub grv_y: i32,
     pub grv_z: i32,
+}
+
+#[derive(Insertable, Debug, Clone)]
+#[diesel(table_name = crate::db::schema::tel0157_readings)]
+pub struct NewTel0157Reading {
+    pub timestamp: f64,
+    pub latitude_degrees: f64,
+    pub longitude_degrees: f64,
+    pub course_over_ground_degrees: f64,
+    pub speed_over_ground_meters_per_second: f64,
+    pub altitude_meters: f64,
+    pub satellites: i32,
 }
 
 pub trait NewFromTimestamped {
@@ -125,6 +138,25 @@ impl NewFromTimestamped for NewBnoReading {
             grv_x: data.data.grv_x as i32,
             grv_y: data.data.grv_y as i32,
             grv_z: data.data.grv_z as i32,
+        }
+    }
+}
+
+impl NewFromTimestamped for NewTel0157Reading {
+    type Source = tel0157::Tel0157Reading;
+
+    fn new_from_timestamped(data: &Timestamped<Self::Source>) -> Self {
+        Self {
+            timestamp: data.timestamp.as_secs(),
+            latitude_degrees: data.data.latitude.get::<degree>(),
+            longitude_degrees: data.data.longitude.get::<degree>(),
+            course_over_ground_degrees: data.data.course_over_ground.get::<degree>(),
+            speed_over_ground_meters_per_second: data
+                .data
+                .speed_over_ground
+                .get::<meter_per_second>(),
+            altitude_meters: data.data.altitude.get::<meter>(),
+            satellites: data.data.satellites as i32,
         }
     }
 }

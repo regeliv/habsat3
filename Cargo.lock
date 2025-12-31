@@ -28,6 +28,7 @@ dependencies = [
  "serde",
  "serde_json",
  "system-sensors",
+ "tel0157",
  "tokio",
  "tokio-util",
  "tower-http",
@@ -1416,6 +1417,17 @@ dependencies = [
  "tempfile",
  "tokio",
  "uom",
+]
+
+[[package]]
+name = "tel0157"
+version = "0.1.0"
+dependencies = [
+ "arbitrary-int 2.0.0",
+ "bitbybit",
+ "i2cdev",
+ "uom",
+ "zerocopy",
 ]
 
 [[package]]

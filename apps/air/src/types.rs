@@ -3,7 +3,9 @@ use std::time::Duration;
 use system_sensors::{FilesystemUsageInfo, MemoryUsageInfo};
 use uom::si::f64::ThermodynamicTemperature;
 
-use crate::db::models::{NewBnoReading, NewCpuTemperature, NewFsUsage, NewMemoryUsage};
+use crate::db::models::{
+    NewBnoReading, NewCpuTemperature, NewFsUsage, NewMemoryUsage, NewTel0157Reading,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Tick {
@@ -34,6 +36,7 @@ pub struct DataBatches {
     pub cpu_temps: Vec<NewCpuTemperature>,
     pub fs_usages: Vec<NewFsUsage>,
     pub bno_readings: Vec<NewBnoReading>,
+    pub tel0157_readings: Vec<NewTel0157Reading>,
 }
 
 impl DataBatches {
@@ -61,4 +64,5 @@ pub struct RxDataChannels {
     pub cpu_temp: kanal::AsyncReceiver<Timestamped<ThermodynamicTemperature>>,
     pub fs_usage: kanal::AsyncReceiver<Timestamped<FilesystemUsageInfo>>,
     pub bno_reading: kanal::AsyncReceiver<Timestamped<bno_055::SensorData>>,
+    pub tel0157_reading: kanal::AsyncReceiver<Timestamped<tel0157::Tel0157Reading>>,
 }

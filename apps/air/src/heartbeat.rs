@@ -28,12 +28,20 @@ impl Heartbeat {
         }
     }
 
-    pub fn rx_every_n_beats(&mut self, n: NonZero<usize>) -> broadcast::Receiver<Tick> {
+    fn rx_every_n_beats(&mut self, n: NonZero<usize>) -> broadcast::Receiver<Tick> {
         self.beat_broadcast
             .entry(n)
             .or_insert_with(|| broadcast::channel(1))
             .1
             .resubscribe()
+    }
+
+    pub fn rx_every(&mut self, duration: Duration) -> broadcast::Receiver<Tick> {
+        assert!(duration >= self.interval);
+
+        let multiple = (duration.as_nanos() / self.interval.as_nanos()) as usize;
+
+        self.rx_every_n_beats(NonZero::new(multiple).unwrap())
     }
 
     pub async fn run(&self) {

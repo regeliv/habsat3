@@ -25,4 +25,5 @@ diesel_migrations = "2.3.1"
 libsqlite3-sys = { version = "0.35.0", features = ["bundled"] }
 
 bno-055 = { path = "../../platform/bno-055/" }
+tel0157 = { path = "../../platform/tel0157/"}
 system-sensors = { path = "../../platform/system-sensors/" }

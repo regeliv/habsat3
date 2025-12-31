@@ -9,7 +9,7 @@ use axum::{
 };
 use bno_055::SensorConfig;
 use kanal::{AsyncReceiver, AsyncSender};
-use std::{num::NonZero, time::Duration};
+use std::time::Duration;
 use system_sensors::{FilesystemUsageInfo, MemoryUsageInfo};
 use tokio::net::TcpListener;
 use tokio_util::task::LocalPoolHandle;
@@ -18,7 +18,7 @@ use uom::si::f64::ThermodynamicTemperature;
 
 use crate::{
     camera::camera_task,
-    sensor_tasks::{bno_task, data_collector, system_stats},
+    sensor_tasks::{bno_task, data_collector, system_stats, tel0157_task},
     types::{DataBatches, RxDataChannels, Timestamped},
 };
 
@@ -99,6 +99,8 @@ async fn main() {
     let cpu_temp_channel = AsyncChannel::<Timestamped<ThermodynamicTemperature>>::new_unbounded();
     let mem_usage_channel = AsyncChannel::<Timestamped<MemoryUsageInfo>>::new_unbounded();
     let fs_usage_channel = AsyncChannel::<Timestamped<FilesystemUsageInfo>>::new_unbounded();
+    let tel0157_reading_channel =
+        AsyncChannel::<Timestamped<tel0157::Tel0157Reading>>::new_unbounded();
 
     let batch_channel = AsyncChannel::<DataBatches>::new_unbounded();
 
@@ -107,14 +109,16 @@ async fn main() {
         cpu_temp: cpu_temp_channel.rx,
         fs_usage: fs_usage_channel.rx,
         bno_reading: bno_channel.rx,
+        tel0157_reading: tel0157_reading_channel.rx,
     };
 
     let state = AppState {};
 
     let mut ms100_heartbeat = heartbeat::Heartbeat::new(Duration::from_millis(100));
 
-    let rx_every_100ms = ms100_heartbeat.rx_every_n_beats(NonZero::new(1).unwrap());
-    let rx_every_10s = ms100_heartbeat.rx_every_n_beats(NonZero::new(100).unwrap());
+    let rx_every_100ms = ms100_heartbeat.rx_every(Duration::from_millis(100));
+    let rx_every_2s = ms100_heartbeat.rx_every(Duration::from_secs(2));
+    let rx_every_10s = ms100_heartbeat.rx_every(Duration::from_secs(10));
 
     let bno_sensor_config = {
         let file = std::fs::read_to_string("bno_sensor_config.json").unwrap();
@@ -149,6 +153,7 @@ async fn main() {
         db_pool.spawn_pinned(|| db::db_task(batch_channel.rx)),
         ms100_heartbeat.run(),
         i2c_pool.spawn_pinned(|| bno_task(bno_sensor_config, rx_every_100ms, bno_channel.tx)),
+        i2c_pool.spawn_pinned(|| tel0157_task(rx_every_2s, tel0157_reading_channel.tx)),
         data_collector(rx_channels, batch_channel.tx),
         system_stats(
             rx_every_10s.resubscribe(),

@@ -55,9 +55,23 @@ diesel::table! {
     }
 }
 
+diesel::table! {
+    tel0157_readings (id) {
+        id -> Integer,
+        timestamp -> Double,
+        latitude_degrees -> Double,
+        longitude_degrees -> Double,
+        course_over_ground_degrees -> Double,
+        speed_over_ground_meters_per_second -> Double,
+        altitude_meters -> Double,
+        satellites -> Integer,
+    }
+}
+
 diesel::allow_tables_to_appear_in_same_query!(
     bno_sensor_data,
     cpu_temperature,
     filesystem_usage,
     memory_usage,
+    tel0157_readings,
 );

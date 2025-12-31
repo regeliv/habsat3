@@ -1,6 +1,7 @@
 use crate::{
     db::models::{
         NewBnoReading, NewCpuTemperature, NewFromTimestamped as _, NewFsUsage, NewMemoryUsage,
+        NewTel0157Reading,
     },
     types::{DataBatches, RxDataChannels, Tick, Timestamped},
 };
@@ -10,6 +11,7 @@ use std::time::Duration;
 use system_sensors::{
     CpuTemperature, FileSystemUsage, FilesystemUsageInfo, MemoryUsage, MemoryUsageInfo,
 };
+use tel0157::TEL0157_I2C_ADDR;
 use tokio::{
     fs::File,
     io,
@@ -136,8 +138,36 @@ pub async fn bno_task(
         match heartbeat.recv().await {
             Ok(tick) => {
                 let data = bno.get_sensor_data()?;
-                //info!("BNO-055 got sensor data {:?}", data);
                 _ = bno_tx.send(Timestamped::new(tick, data)).await;
+            }
+
+            Err(RecvError::Lagged(_)) => {
+                warn!("Skipped a beat");
+            }
+
+            Err(RecvError::Closed) => {
+                unreachable!("Heartbeat should never stop ticking while a task is running");
+            }
+        }
+    }
+}
+
+pub async fn tel0157_task(
+    mut heartbeat: broadcast::Receiver<Tick>,
+    tel0157_tx: kanal::AsyncSender<Timestamped<tel0157::Tel0157Reading>>,
+) -> Result<(), LinuxI2CError> {
+    info!("Started tel0157 task");
+
+    let dev = LinuxI2CDevice::new("/dev/i2c-1", TEL0157_I2C_ADDR as u16)
+        .inspect_err(|e| warn!("Failed to open i2c device: {e}"))?;
+
+    let mut tel0157 = tel0157::Tel0157::new(dev)?;
+
+    loop {
+        match heartbeat.recv().await {
+            Ok(tick) => {
+                let reading = tel0157.reading()?;
+                _ = tel0157_tx.send(Timestamped::new(tick, reading)).await;
             }
 
             Err(RecvError::Lagged(_)) => {
@@ -180,6 +210,9 @@ pub async fn data_collector(channels: RxDataChannels, batch_tx: kanal::AsyncSend
             }
             Ok(bno_reading) = channels.bno_reading.recv() => {
                 batched.bno_readings.push(NewBnoReading::new_from_timestamped(&bno_reading));
+            }
+            Ok(tel_reading) = channels.tel0157_reading.recv() => {
+                batched.tel0157_readings.push(NewTel0157Reading::new_from_timestamped(&tel_reading))
             }
 
         }
