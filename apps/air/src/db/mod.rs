@@ -66,6 +66,20 @@ pub async fn db_task(data_batches: kanal::AsyncReceiver<DataBatches>) {
                 .unwrap();
         }
 
+        if !batch.tel0157_readings.is_empty() {
+            diesel::insert_into(schema::tel0157_readings::table)
+                .values(&batch.tel0157_readings)
+                .execute(&mut connection)
+                .unwrap();
+        }
+
+        if !batch.bmp280_readings.is_empty() {
+            diesel::insert_into(schema::bmp280_readings::table)
+                .values(&batch.bmp280_readings)
+                .execute(&mut connection)
+                .unwrap();
+        }
+
         info!("Processed data batch");
     }
 }

@@ -1,9 +1,9 @@
 use crate::{
     db::models::{
-        NewBnoReading, NewCpuTemperature, NewFromTimestamped as _, NewFsUsage, NewMemoryUsage,
-        NewTel0157Reading,
+        NewBmp280Reading, NewBnoReading, NewCpuTemperature, NewFromTimestamped as _, NewFsUsage,
+        NewMemoryUsage, NewTel0157Reading,
     },
-    types::{DataBatches, RxDataChannels, Tick, Timestamped},
+    types::{DataBatches, Labeled, RxDataChannels, Tick, Timestamped},
 };
 use bno_055::{BNO_055_I2C_ADDR, SensorConfig};
 use i2cdev::linux::{LinuxI2CDevice, LinuxI2CError};
@@ -156,7 +156,7 @@ pub async fn tel0157_task(
     mut heartbeat: broadcast::Receiver<Tick>,
     tel0157_tx: kanal::AsyncSender<Timestamped<tel0157::Tel0157Reading>>,
 ) -> Result<(), LinuxI2CError> {
-    info!("Started tel0157 task");
+    info!("Started TEL0157 task");
 
     let dev = LinuxI2CDevice::new("/dev/i2c-1", TEL0157_I2C_ADDR as u16)
         .inspect_err(|e| warn!("Failed to open i2c device: {e}"))?;
@@ -176,6 +176,94 @@ pub async fn tel0157_task(
 
             Err(RecvError::Closed) => {
                 unreachable!("Heartbeat should never stop ticking while a task is running");
+            }
+        }
+    }
+}
+
+struct Backoff {
+    base: Duration,
+    current: Duration,
+    max: Duration,
+}
+
+impl Backoff {
+    pub fn new(base: Duration, max: Duration) -> Self {
+        Self {
+            base,
+            current: base,
+            max,
+        }
+    }
+
+    pub fn multiply(&mut self, multiplier: u32) {
+        self.current = (self.current * multiplier).min(self.max);
+    }
+
+    pub fn reset(&mut self) {
+        self.current = self.base
+    }
+
+    pub fn get(&self) -> Duration {
+        self.current
+    }
+}
+
+pub async fn bmp280_task(
+    mut heartbeat: broadcast::Receiver<Tick>,
+    bmp280_tx: kanal::AsyncSender<Timestamped<Labeled<bmp280::Bmp280Reading>>>,
+    alt_address: bool,
+) {
+    let address = if alt_address { 0x77 } else { 0x76 };
+    let label = if alt_address { 0x1 } else { 0x0 };
+
+    let mut backoff = Backoff::new(Duration::from_secs(10), Duration::from_hours(1));
+
+    info!("Started BMP280@{address:x} task");
+
+    loop {
+        let Ok(device) = LinuxI2CDevice::new("/dev/i2c-1", address)
+            .inspect_err(|e| warn!("Failed to create BMP280@{address:x} i2c device: {e}"))
+        else {
+            tokio::time::sleep(backoff.get()).await;
+            backoff.multiply(2);
+            continue;
+        };
+
+        let Ok(mut bmp280) = bmp280::Bmp280::new(device)
+            .inspect_err(|e| warn!("Failed to setup BMP280@{address:x}: {e}"))
+        else {
+            tokio::time::sleep(backoff.get()).await;
+            backoff.multiply(2);
+            continue;
+        };
+
+        backoff.reset();
+
+        info!("BMP280@{address:x} setup successfully");
+
+        loop {
+            match heartbeat.recv().await {
+                Ok(tick) => {
+                    let Ok(reading) = bmp280
+                        .reading()
+                        .await
+                        .inspect_err(|e| warn!("Failed to get BMP280@{address:x} reading: {e}"))
+                    else {
+                        break;
+                    };
+                    _ = bmp280_tx
+                        .send(Timestamped::new(tick, Labeled::new(label, reading)))
+                        .await;
+                }
+
+                Err(RecvError::Lagged(_)) => {
+                    warn!("Skipped a beat");
+                }
+
+                Err(RecvError::Closed) => {
+                    unreachable!("Heartbeat should never stop ticking while a task is running");
+                }
             }
         }
     }
@@ -213,6 +301,9 @@ pub async fn data_collector(channels: RxDataChannels, batch_tx: kanal::AsyncSend
             }
             Ok(tel_reading) = channels.tel0157_reading.recv() => {
                 batched.tel0157_readings.push(NewTel0157Reading::new_from_timestamped(&tel_reading))
+            }
+            Ok(bmp280_reading) = channels.bmp280_reading.recv() => {
+                batched.bmp280_readings.push(NewBmp280Reading::new_from_timestamped(&bmp280_reading))
             }
 
         }

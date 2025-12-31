@@ -18,8 +18,8 @@ use uom::si::f64::ThermodynamicTemperature;
 
 use crate::{
     camera::camera_task,
-    sensor_tasks::{bno_task, data_collector, system_stats, tel0157_task},
-    types::{DataBatches, RxDataChannels, Timestamped},
+    sensor_tasks::{bmp280_task, bno_task, data_collector, system_stats, tel0157_task},
+    types::{DataBatches, Labeled, RxDataChannels, Timestamped},
 };
 
 mod camera;
@@ -101,6 +101,8 @@ async fn main() {
     let fs_usage_channel = AsyncChannel::<Timestamped<FilesystemUsageInfo>>::new_unbounded();
     let tel0157_reading_channel =
         AsyncChannel::<Timestamped<tel0157::Tel0157Reading>>::new_unbounded();
+    let bmp280_reading_channel =
+        AsyncChannel::<Timestamped<Labeled<bmp280::Bmp280Reading>>>::new_unbounded();
 
     let batch_channel = AsyncChannel::<DataBatches>::new_unbounded();
 
@@ -110,6 +112,7 @@ async fn main() {
         fs_usage: fs_usage_channel.rx,
         bno_reading: bno_channel.rx,
         tel0157_reading: tel0157_reading_channel.rx,
+        bmp280_reading: bmp280_reading_channel.rx,
     };
 
     let state = AppState {};
@@ -153,7 +156,16 @@ async fn main() {
         db_pool.spawn_pinned(|| db::db_task(batch_channel.rx)),
         ms100_heartbeat.run(),
         i2c_pool.spawn_pinned(|| bno_task(bno_sensor_config, rx_every_100ms, bno_channel.tx)),
-        i2c_pool.spawn_pinned(|| tel0157_task(rx_every_2s, tel0157_reading_channel.tx)),
+        i2c_pool.spawn_pinned({
+            let rx_every_2s = rx_every_2s.resubscribe();
+            || tel0157_task(rx_every_2s, tel0157_reading_channel.tx)
+        }),
+        i2c_pool.spawn_pinned({
+            let rx_every_2s = rx_every_2s.resubscribe();
+            let bmp280_tx = bmp280_reading_channel.tx.clone();
+            || bmp280_task(rx_every_2s, bmp280_tx, false)
+        }),
+        i2c_pool.spawn_pinned(|| bmp280_task(rx_every_2s, bmp280_reading_channel.tx, true)),
         data_collector(rx_channels, batch_channel.tx),
         system_stats(
             rx_every_10s.resubscribe(),

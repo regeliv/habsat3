@@ -2,10 +2,10 @@ use diesel::prelude::*;
 use system_sensors::{FilesystemUsageInfo, MemoryUsageInfo};
 use uom::si::{
     angle::degree, f64::ThermodynamicTemperature, information::mebibyte, length::meter,
-    thermodynamic_temperature::degree_celsius, velocity::meter_per_second,
+    pressure::pascal, thermodynamic_temperature::degree_celsius, velocity::meter_per_second,
 };
 
-use crate::types::Timestamped;
+use crate::types::{Labeled, Timestamped};
 
 #[derive(Insertable, Clone, Debug)]
 #[diesel(table_name = crate::db::schema::filesystem_usage)]
@@ -68,6 +68,15 @@ pub struct NewTel0157Reading {
     pub speed_over_ground_meters_per_second: f64,
     pub altitude_meters: f64,
     pub satellites: i32,
+}
+
+#[derive(Insertable, Debug, Clone)]
+#[diesel(table_name = crate::db::schema::bmp280_readings)]
+pub struct NewBmp280Reading {
+    pub timestamp: f64,
+    pub bmp_id: i32,
+    pub temperature_degrees_celsius: f64,
+    pub pressure_pascals: f64,
 }
 
 pub trait NewFromTimestamped {
@@ -157,6 +166,20 @@ impl NewFromTimestamped for NewTel0157Reading {
                 .get::<meter_per_second>(),
             altitude_meters: data.data.altitude.get::<meter>(),
             satellites: data.data.satellites as i32,
+        }
+    }
+}
+
+impl NewFromTimestamped for NewBmp280Reading {
+    type Source = Labeled<bmp280::Bmp280Reading>;
+
+    fn new_from_timestamped(data: &Timestamped<Self::Source>) -> Self {
+        Self {
+            timestamp: data.timestamp.as_secs(),
+            bmp_id: data.data.label as i32,
+            // With some many `data`s were are likely too generic...
+            temperature_degrees_celsius: data.data.data.temperature.get::<degree_celsius>(),
+            pressure_pascals: data.data.data.pressure.get::<pascal>(),
         }
     }
 }

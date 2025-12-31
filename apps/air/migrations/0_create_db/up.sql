@@ -50,6 +50,17 @@ create table tel0157_readings (
   satellites integer not null
 );
 
+create table bmp280_readings (
+  id integer primary key autoincrement not null,
+
+  bmp_id integer not null,
+
+  timestamp double not null,
+
+  temperature_degrees_celsius double not null,
+  pressure_pascals double not null
+);
+
 create table memory_usage (
   id integer primary key autoincrement not null,
 

@@ -1,10 +1,10 @@
 use std::time::Duration;
-
 use system_sensors::{FilesystemUsageInfo, MemoryUsageInfo};
 use uom::si::f64::ThermodynamicTemperature;
 
 use crate::db::models::{
-    NewBnoReading, NewCpuTemperature, NewFsUsage, NewMemoryUsage, NewTel0157Reading,
+    NewBmp280Reading, NewBnoReading, NewCpuTemperature, NewFsUsage, NewMemoryUsage,
+    NewTel0157Reading,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -30,6 +30,18 @@ impl<T: Clone + std::fmt::Debug> Timestamped<T> {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct Labeled<T: Clone + std::fmt::Debug> {
+    pub label: u8,
+    pub data: T,
+}
+
+impl<T: Clone + std::fmt::Debug> Labeled<T> {
+    pub fn new(label: u8, data: T) -> Self {
+        Self { label, data }
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct DataBatches {
     pub mem_usages: Vec<NewMemoryUsage>,
@@ -37,6 +49,7 @@ pub struct DataBatches {
     pub fs_usages: Vec<NewFsUsage>,
     pub bno_readings: Vec<NewBnoReading>,
     pub tel0157_readings: Vec<NewTel0157Reading>,
+    pub bmp280_readings: Vec<NewBmp280Reading>,
 }
 
 impl DataBatches {
@@ -49,6 +62,8 @@ impl DataBatches {
         self.cpu_temps.clear();
         self.fs_usages.clear();
         self.bno_readings.clear();
+        self.tel0157_readings.clear();
+        self.bmp280_readings.clear();
     }
 
     pub fn total_len(&self) -> usize {
@@ -56,6 +71,8 @@ impl DataBatches {
             + self.cpu_temps.len()
             + self.fs_usages.len()
             + self.bno_readings.len()
+            + self.tel0157_readings.len()
+            + self.bmp280_readings.len()
     }
 }
 
@@ -65,4 +82,5 @@ pub struct RxDataChannels {
     pub fs_usage: kanal::AsyncReceiver<Timestamped<FilesystemUsageInfo>>,
     pub bno_reading: kanal::AsyncReceiver<Timestamped<bno_055::SensorData>>,
     pub tel0157_reading: kanal::AsyncReceiver<Timestamped<tel0157::Tel0157Reading>>,
+    pub bmp280_reading: kanal::AsyncReceiver<Timestamped<Labeled<bmp280::Bmp280Reading>>>,
 }

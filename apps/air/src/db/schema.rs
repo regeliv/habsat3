@@ -1,6 +1,16 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
+    bmp280_readings (id) {
+        id -> Integer,
+        bmp_id -> Integer,
+        timestamp -> Double,
+        temperature_degrees_celsius -> Double,
+        pressure_pascals -> Double,
+    }
+}
+
+diesel::table! {
     bno_sensor_data (id) {
         id -> Integer,
         timestamp -> Double,
@@ -69,6 +79,7 @@ diesel::table! {
 }
 
 diesel::allow_tables_to_appear_in_same_query!(
+    bmp280_readings,
     bno_sensor_data,
     cpu_temperature,
     filesystem_usage,

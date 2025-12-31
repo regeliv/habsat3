@@ -27,3 +27,4 @@ libsqlite3-sys = { version = "0.35.0", features = ["bundled"] }
 bno-055 = { path = "../../platform/bno-055/" }
 tel0157 = { path = "../../platform/tel0157/"}
 system-sensors = { path = "../../platform/system-sensors/" }
+bmp280 = { path = "../../platform/bmp280/" }

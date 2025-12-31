@@ -18,7 +18,7 @@ build-release:
 
 mock-db-setup:
   mkdir --parents target/
-  diesel setup --database-url target/mock.db
+  diesel setup --config-file apps/air/diesel.toml --database-url target/mock.db
   diesel migration run --config-file apps/air/diesel.toml --database-url target/mock.db 
 
 db-regen:

@@ -16,6 +16,7 @@ name = "air"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "bmp280",
  "bno-055",
  "chrono",
  "diesel",
@@ -189,6 +190,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3078c7629b62d3f0439517fa394996acacc5cbc91c5a20d8c658e77abd503a71"
 dependencies = [
  "generic-array",
+]
+
+[[package]]
+name = "bmp280"
+version = "0.1.0"
+dependencies = [
+ "arbitrary-int 2.0.0",
+ "bitbybit",
+ "i2cdev",
+ "tokio",
+ "uom",
+ "zerocopy",
 ]
 
 [[package]]
