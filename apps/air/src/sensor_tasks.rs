@@ -1,4 +1,9 @@
-use crate::heartbeat::Tick;
+use crate::{
+    db::models::{
+        NewBnoReading, NewCpuTemperature, NewFromTimestamped as _, NewFsUsage, NewMemoryUsage,
+    },
+    types::{DataBatches, RxDataChannels, Tick, Timestamped},
+};
 use bno_055::{BNO_055_I2C_ADDR, SensorConfig};
 use i2cdev::linux::{LinuxI2CDevice, LinuxI2CError};
 use std::time::Duration;
@@ -15,9 +20,9 @@ use uom::si::f64::ThermodynamicTemperature;
 
 pub async fn system_stats(
     mut heartbeat: broadcast::Receiver<Tick>,
-    cpu_temp_tx: kanal::AsyncSender<(Tick, ThermodynamicTemperature)>,
-    fs_usage_tx: kanal::AsyncSender<(Tick, FilesystemUsageInfo)>,
-    mem_usage_tx: kanal::AsyncSender<(Tick, MemoryUsageInfo)>,
+    cpu_temp_tx: kanal::AsyncSender<Timestamped<ThermodynamicTemperature>>,
+    fs_usage_tx: kanal::AsyncSender<Timestamped<FilesystemUsageInfo>>,
+    mem_usage_tx: kanal::AsyncSender<Timestamped<MemoryUsageInfo>>,
 ) -> io::Result<()> {
     info!("Started system sensor task");
 
@@ -54,19 +59,16 @@ pub async fn system_stats(
 
 async fn send_cpu_temp(
     cpu_temperature_reader: &mut CpuTemperature,
-    out: &kanal::AsyncSender<(Tick, ThermodynamicTemperature)>,
+    out: &kanal::AsyncSender<Timestamped<ThermodynamicTemperature>>,
     tick: Tick,
 ) {
     match cpu_temperature_reader.read().await {
         Err(e) => {
-            warn!(
-                "Failed to read CPU temperature: {e} at {}",
-                tick.unix_time.as_secs_f64()
-            );
+            warn!("Failed to read CPU temperature: {e} at {}", tick.as_secs());
         }
         Ok(cpu_temp) => {
             _ = out
-                .send((tick, cpu_temp))
+                .send(Timestamped::new(tick, cpu_temp))
                 .await
                 .inspect_err(|e| warn!("Failed to send cpu temperature: {e}"))
         }
@@ -75,19 +77,16 @@ async fn send_cpu_temp(
 
 async fn send_fs_usage(
     fs_usage: &FileSystemUsage,
-    out: &kanal::AsyncSender<(Tick, FilesystemUsageInfo)>,
+    out: &kanal::AsyncSender<Timestamped<FilesystemUsageInfo>>,
     tick: Tick,
 ) {
     match fs_usage.get() {
         Err(e) => {
-            warn!(
-                "Failed to get FS usage: {e} at {}",
-                tick.unix_time.as_secs_f64()
-            );
+            warn!("Failed to get FS usage: {e} at {}", tick.as_secs());
         }
         Ok(cpu_temp) => {
             _ = out
-                .send((tick, cpu_temp))
+                .send(Timestamped::new(tick, cpu_temp))
                 .await
                 .inspect_err(|e| warn!("Failed to send file system usage: {e}"))
         }
@@ -96,7 +95,7 @@ async fn send_fs_usage(
 
 async fn send_memory_usage(
     mem_usage: &mut MemoryUsage,
-    out: &kanal::AsyncSender<(Tick, MemoryUsageInfo)>,
+    out: &kanal::AsyncSender<Timestamped<MemoryUsageInfo>>,
     tick: Tick,
 ) {
     match mem_usage.read().await {
@@ -108,7 +107,7 @@ async fn send_memory_usage(
         }
         Ok(cpu_temp) => {
             _ = out
-                .send((tick, cpu_temp))
+                .send(Timestamped::new(tick, cpu_temp))
                 .await
                 .inspect_err(|e| warn!("Failed to send memory usage: {e}"))
         }
@@ -118,7 +117,7 @@ async fn send_memory_usage(
 pub async fn bno_task(
     bno_sensor_config: SensorConfig,
     mut heartbeat: broadcast::Receiver<Tick>,
-    bno_tx: kanal::AsyncSender<(Tick, bno_055::SensorData)>,
+    bno_tx: kanal::AsyncSender<Timestamped<bno_055::SensorData>>,
 ) -> Result<(), LinuxI2CError> {
     info!("Started BNO-055 task");
 
@@ -138,7 +137,7 @@ pub async fn bno_task(
             Ok(tick) => {
                 let data = bno.get_sensor_data()?;
                 //info!("BNO-055 got sensor data {:?}", data);
-                _ = bno_tx.send((tick, data)).await;
+                _ = bno_tx.send(Timestamped::new(tick, data)).await;
             }
 
             Err(RecvError::Lagged(_)) => {
@@ -152,61 +151,35 @@ pub async fn bno_task(
     }
 }
 
-pub struct RxDataChannels {
-    pub mem_usage: kanal::AsyncReceiver<(Tick, MemoryUsageInfo)>,
-    pub cpu_temp: kanal::AsyncReceiver<(Tick, ThermodynamicTemperature)>,
-    pub fs_usage: kanal::AsyncReceiver<(Tick, FilesystemUsageInfo)>,
-    pub bno_readings: kanal::AsyncReceiver<(Tick, bno_055::SensorData)>,
-}
-
-#[derive(Debug, Clone)]
-pub struct Data {
-    #[expect(dead_code)]
-    pub tick: Tick,
-    pub ty: DataType,
-}
-
-#[derive(Debug, Clone)]
-pub enum DataType {
-    #[expect(dead_code)]
-    FsUsage(FilesystemUsageInfo),
-    #[expect(dead_code)]
-    CpuTemp(ThermodynamicTemperature),
-    #[expect(dead_code)]
-    MemUsage(MemoryUsageInfo),
-    #[expect(dead_code)]
-    BnoReadings(bno_055::SensorData),
-}
-
-pub async fn data_collector(channels: RxDataChannels, batch_tx: kanal::AsyncSender<Vec<Data>>) {
+pub async fn data_collector(channels: RxDataChannels, batch_tx: kanal::AsyncSender<DataBatches>) {
     info!("Started data collector");
-    let mut batch = Vec::<Data>::with_capacity(200);
 
-    let mut send_interval = tokio::time::interval(Duration::from_secs(5));
+    let mut batched = DataBatches::new();
+
+    let mut send_interval = tokio::time::interval(Duration::from_secs(10));
     send_interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
     loop {
         tokio::select! {
             _ = send_interval.tick() => {
-                _ = batch_tx.send(batch.clone()).await;
-                warn!("Sent batch of size {}", batch.len());
-                batch.clear();
-            }
-
-            fs_usage = channels.fs_usage.recv() => {
-                if let Ok(fs_usage) = fs_usage { batch.push(Data { tick: fs_usage.0, ty: DataType::FsUsage(fs_usage.1) }) }
-            }
-            mem_usage = channels.mem_usage.recv() => {
-                if let Ok(mem_usage) = mem_usage { batch.push(Data { tick: mem_usage.0, ty: DataType::MemUsage(mem_usage.1) }) }
-            }
-            cpu_temp = channels.cpu_temp.recv() => {
-                if let Ok(cpu_temp) = cpu_temp { batch.push(Data { tick: cpu_temp.0, ty: DataType::CpuTemp(cpu_temp.1) }) }
-            }
-
-            bno_readings = channels.bno_readings.recv() => {
-                if let Ok(bno_readings) = bno_readings {
-                    batch.push(Data { tick: bno_readings.0, ty: DataType::BnoReadings(bno_readings.1.clone()) });
+                if  0 < batched.total_len() {
+                    _ = batch_tx.send(batched.clone()).await;
+                    info!("Sent batched data of size: {}", batched.total_len());
                 }
+                batched.clear();
+            }
+
+            Ok(fs_usage) = channels.fs_usage.recv() => {
+                batched.fs_usages.push(NewFsUsage::new_from_timestamped(&fs_usage));
+            }
+            Ok(mem_usage) = channels.mem_usage.recv() => {
+                batched.mem_usages.push(NewMemoryUsage::new_from_timestamped(&mem_usage));
+            }
+            Ok(cpu_temp) = channels.cpu_temp.recv() => {
+                batched.cpu_temps.push(NewCpuTemperature::new_from_timestamped(&cpu_temp));
+            }
+            Ok(bno_reading) = channels.bno_reading.recv() => {
+                batched.bno_readings.push(NewBnoReading::new_from_timestamped(&bno_reading));
             }
 
         }

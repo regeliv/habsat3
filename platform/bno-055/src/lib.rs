@@ -135,34 +135,34 @@ impl<Dev: I2CDevice> Bno055<Dev> {
     Clone,
 )]
 pub struct SensorData {
-    acc_x: u16,
-    acc_y: u16,
-    acc_z: u16,
+    pub acc_x: u16,
+    pub acc_y: u16,
+    pub acc_z: u16,
 
-    mag_x: u16,
-    mag_y: u16,
-    mag_z: u16,
+    pub mag_x: u16,
+    pub mag_y: u16,
+    pub mag_z: u16,
 
-    gyr_x: u16,
-    gyr_y: u16,
-    gyr_z: u16,
+    pub gyr_x: u16,
+    pub gyr_y: u16,
+    pub gyr_z: u16,
 
-    eul_heading: u16,
-    eul_roll: u16,
-    eul_pitch: u16,
+    pub eul_heading: u16,
+    pub eul_roll: u16,
+    pub eul_pitch: u16,
 
-    qua_w: u16,
-    qua_x: u16,
-    qua_y: u16,
-    qua_z: u16,
+    pub qua_w: u16,
+    pub qua_x: u16,
+    pub qua_y: u16,
+    pub qua_z: u16,
 
-    lia_x: u16,
-    lia_y: u16,
-    lia_z: u16,
+    pub lia_x: u16,
+    pub lia_y: u16,
+    pub lia_z: u16,
 
-    grv_x: u16,
-    grv_y: u16,
-    grv_z: u16,
+    pub grv_x: u16,
+    pub grv_y: u16,
+    pub grv_z: u16,
 }
 const _: () = assert!(size_of::<SensorData>() == addresses::SENSOR_DATA_LENGTH as usize);
 

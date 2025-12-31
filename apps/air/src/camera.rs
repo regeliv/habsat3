@@ -15,7 +15,7 @@ use tokio::sync::broadcast::{self, error::RecvError};
 use tracing::{debug, error, info, warn};
 use turbojpeg::YuvImage;
 
-use crate::heartbeat::Tick;
+use crate::types::Tick;
 
 struct PhotoCapture<'a> {
     #[expect(

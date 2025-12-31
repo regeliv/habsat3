@@ -39,6 +39,8 @@
           just,
           mold,
           libcamera,
+          diesel-cli,
+          sqlite,
         }:
         mkShell.override { inherit stdenv; } {
           nativeBuildInputs = [
@@ -52,6 +54,8 @@
             llvmPackages.libclang
             just
             cmake
+            diesel-cli
+            sqlite
           ];
 
           buildInputs = [
@@ -61,6 +65,7 @@
           env = {
             LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
             BINDGEN_EXTRA_CLANG_ARGS = "-isystem ${stdenv.cc.cc}/include/c++/${stdenv.cc.version}/${stdenv.targetPlatform.config} -isystem ${stdenv.cc.cc}/include/c++/${stdenv.cc.version} -isystem ${stdenv.cc.libc.dev}/include";
+            DATABASE_URL = "target/mock.db";
           };
         }
       ) { };

@@ -2,14 +2,13 @@ use axum::{
     Router,
     extract::{
         State,
-        ws::{Message, WebSocket, WebSocketUpgrade},
+        ws::{WebSocket, WebSocketUpgrade},
     },
     response::{Html, IntoResponse},
     routing::get,
 };
 use bno_055::SensorConfig;
 use kanal::{AsyncReceiver, AsyncSender};
-use mimalloc::MiMalloc;
 use std::{num::NonZero, time::Duration};
 use system_sensors::{FilesystemUsageInfo, MemoryUsageInfo};
 use tokio::net::TcpListener;
@@ -19,16 +18,15 @@ use uom::si::f64::ThermodynamicTemperature;
 
 use crate::{
     camera::camera_task,
-    heartbeat::Tick,
-    sensor_tasks::{Data, RxDataChannels, bno_task, data_collector, system_stats},
+    sensor_tasks::{bno_task, data_collector, system_stats},
+    types::{DataBatches, RxDataChannels, Timestamped},
 };
 
 mod camera;
+mod db;
 mod heartbeat;
 mod sensor_tasks;
-
-#[global_allocator]
-static GLOBAL: MiMalloc = mimalloc::MiMalloc;
+mod types;
 
 async fn index() -> Html<&'static str> {
     Html(
@@ -62,22 +60,15 @@ async fn ws_handler(State(state): State<AppState>, ws: WebSocketUpgrade) -> impl
     ws.on_upgrade(move |socket| handle_socket(socket, state))
 }
 
-async fn handle_socket(mut socket: WebSocket, state: AppState) {
+async fn handle_socket(_: WebSocket, _: AppState) {
     info!("Started socket task");
     loop {
-        tokio::select! {
-            data = state.data.recv() => {
-                dbg!(data.unwrap().into_iter().filter(|d| !matches!(d.ty, sensor_tasks::DataType::BnoReadings(_))).collect::<Vec<_>>());
-                _ = socket.send(Message::text("foo")).await;
-            }
-        }
+        tokio::time::sleep(Duration::from_hours(100)).await;
     }
 }
 
 #[derive(Clone)]
-struct AppState {
-    data: kanal::AsyncReceiver<Vec<Data>>,
-}
+struct AppState {}
 
 struct AsyncChannel<T> {
     pub tx: AsyncSender<T>,
@@ -102,23 +93,23 @@ async fn main() {
         .finish();
     tracing::subscriber::set_global_default(subscriber).unwrap();
 
-    let bno_channel = AsyncChannel::<(Tick, bno_055::SensorData)>::new_unbounded();
-    let cpu_temp_channel = AsyncChannel::<(Tick, ThermodynamicTemperature)>::new_unbounded();
-    let mem_usage_channel = AsyncChannel::<(Tick, MemoryUsageInfo)>::new_unbounded();
-    let fs_usage_channel = AsyncChannel::<(Tick, FilesystemUsageInfo)>::new_unbounded();
+    info!("Application started");
 
-    let data_channel = AsyncChannel::<Vec<Data>>::new_unbounded();
+    let bno_channel = AsyncChannel::<Timestamped<bno_055::SensorData>>::new_unbounded();
+    let cpu_temp_channel = AsyncChannel::<Timestamped<ThermodynamicTemperature>>::new_unbounded();
+    let mem_usage_channel = AsyncChannel::<Timestamped<MemoryUsageInfo>>::new_unbounded();
+    let fs_usage_channel = AsyncChannel::<Timestamped<FilesystemUsageInfo>>::new_unbounded();
+
+    let batch_channel = AsyncChannel::<DataBatches>::new_unbounded();
 
     let rx_channels = RxDataChannels {
         mem_usage: mem_usage_channel.rx,
         cpu_temp: cpu_temp_channel.rx,
         fs_usage: fs_usage_channel.rx,
-        bno_readings: bno_channel.rx,
+        bno_reading: bno_channel.rx,
     };
 
-    let state = AppState {
-        data: data_channel.rx,
-    };
+    let state = AppState {};
 
     let mut ms100_heartbeat = heartbeat::Heartbeat::new(Duration::from_millis(100));
 
@@ -152,10 +143,13 @@ async fn main() {
     // different thread due to tokio's work-stealing nature
     let i2c_pool = LocalPoolHandle::new(1);
 
+    let db_pool = LocalPoolHandle::new(1);
+
     _ = tokio::join!(
+        db_pool.spawn_pinned(|| db::db_task(batch_channel.rx)),
         ms100_heartbeat.run(),
-        i2c_pool.spawn_pinned(async || bno_task(bno_sensor_config, rx_every_100ms, bno_channel.tx)),
-        data_collector(rx_channels, data_channel.tx),
+        i2c_pool.spawn_pinned(|| bno_task(bno_sensor_config, rx_every_100ms, bno_channel.tx)),
+        data_collector(rx_channels, batch_channel.tx),
         system_stats(
             rx_every_10s.resubscribe(),
             cpu_temp_channel.tx,
