@@ -80,7 +80,7 @@ pub struct RxDataChannels {
     pub mem_usage: kanal::AsyncReceiver<Timestamped<MemoryUsageInfo>>,
     pub cpu_temp: kanal::AsyncReceiver<Timestamped<ThermodynamicTemperature>>,
     pub fs_usage: kanal::AsyncReceiver<Timestamped<FilesystemUsageInfo>>,
-    pub bno_reading: kanal::AsyncReceiver<Timestamped<bno_055::SensorData>>,
+    pub bno_reading: kanal::AsyncReceiver<Timestamped<bno_055::Bno055Reading>>,
     pub tel0157_reading: kanal::AsyncReceiver<Timestamped<tel0157::Tel0157Reading>>,
     pub bmp280_reading: kanal::AsyncReceiver<Timestamped<Labeled<bmp280::Bmp280Reading>>>,
 }

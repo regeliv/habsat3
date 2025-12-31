@@ -31,7 +31,7 @@ pub struct NewCpuTemperature {
 }
 
 #[derive(Insertable, Clone, Debug)]
-#[diesel(table_name = crate::db::schema::bno_sensor_data)]
+#[diesel(table_name = crate::db::schema::bno055_readings)]
 pub struct NewBnoReading {
     pub timestamp: f64,
     pub acc_x: i32,
@@ -120,7 +120,7 @@ impl NewFromTimestamped for NewFsUsage {
 }
 
 impl NewFromTimestamped for NewBnoReading {
-    type Source = bno_055::SensorData;
+    type Source = bno_055::Bno055Reading;
 
     fn new_from_timestamped(data: &Timestamped<Self::Source>) -> Self {
         Self {

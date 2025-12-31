@@ -119,7 +119,7 @@ async fn send_memory_usage(
 pub async fn bno_task(
     bno_sensor_config: SensorConfig,
     mut heartbeat: broadcast::Receiver<Tick>,
-    bno_tx: kanal::AsyncSender<Timestamped<bno_055::SensorData>>,
+    bno_tx: kanal::AsyncSender<Timestamped<bno_055::Bno055Reading>>,
 ) -> Result<(), LinuxI2CError> {
     info!("Started BNO-055 task");
 
@@ -137,7 +137,7 @@ pub async fn bno_task(
     loop {
         match heartbeat.recv().await {
             Ok(tick) => {
-                let data = bno.get_sensor_data()?;
+                let data = bno.reading()?;
                 _ = bno_tx.send(Timestamped::new(tick, data)).await;
             }
 

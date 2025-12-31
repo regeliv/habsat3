@@ -8,7 +8,7 @@ use bitbybit::{bitenum, bitfield};
 use core::mem::size_of;
 use i2cdev::core::I2CDevice;
 use std::time::Duration;
-use zerocopy::IntoBytes;
+use zerocopy::{FromZeros, IntoBytes};
 
 pub const BNO_055_I2C_ADDR: u8 = 0x28;
 
@@ -104,7 +104,7 @@ impl<Dev: I2CDevice> Bno055<Dev> {
         Ok(())
     }
 
-    pub fn get_sensor_data(&mut self) -> Result<SensorData, Dev::Error> {
+    pub fn reading(&mut self) -> Result<Bno055Reading, Dev::Error> {
         // BNO-055's register map is little endian and our target is little endian. We exploit this
         // quickly and cheaply cast sensor readings into our struct. Supporting big endian targets
         // would require bytswapping each u16, but there's no reason to bother with that. Thus, we
@@ -112,7 +112,7 @@ impl<Dev: I2CDevice> Bno055<Dev> {
         #[cfg(target_endian = "big")]
         const _: () = assert!(false);
 
-        let mut sensor_config = SensorData::default();
+        let mut sensor_config = Bno055Reading::new_zeroed();
 
         self.device.write(&[addresses::SENSOR_DATA_START])?;
         self.device.read(sensor_config.as_mut_bytes())?;
@@ -134,7 +134,7 @@ impl<Dev: I2CDevice> Bno055<Dev> {
     serde::Deserialize,
     Clone,
 )]
-pub struct SensorData {
+pub struct Bno055Reading {
     pub acc_x: u16,
     pub acc_y: u16,
     pub acc_z: u16,
@@ -164,7 +164,7 @@ pub struct SensorData {
     pub grv_y: u16,
     pub grv_z: u16,
 }
-const _: () = assert!(size_of::<SensorData>() == addresses::SENSOR_DATA_LENGTH as usize);
+const _: () = assert!(size_of::<Bno055Reading>() == addresses::SENSOR_DATA_LENGTH as usize);
 
 #[repr(C)]
 #[derive(
@@ -289,7 +289,7 @@ mod tests {
     fn test_sensor_data() {
         let mut device = MockI2CDevice::new();
 
-        let mut expected_sensor_data = SensorData::default();
+        let mut expected_sensor_data = Bno055Reading::default();
         expected_sensor_data.as_mut_bytes().fill(0xCC);
 
         device.regmap.write_regs(
@@ -299,6 +299,6 @@ mod tests {
 
         let mut bno = Bno055::new(device).expect("Initialization must succeed in this test");
 
-        assert_eq!(bno.get_sensor_data().unwrap(), expected_sensor_data);
+        assert_eq!(bno.reading().unwrap(), expected_sensor_data);
     }
 }

@@ -11,7 +11,7 @@ diesel::table! {
 }
 
 diesel::table! {
-    bno_sensor_data (id) {
+    bno055_readings (id) {
         id -> Integer,
         timestamp -> Double,
         acc_x -> Integer,
@@ -80,7 +80,7 @@ diesel::table! {
 
 diesel::allow_tables_to_appear_in_same_query!(
     bmp280_readings,
-    bno_sensor_data,
+    bno055_readings,
     cpu_temperature,
     filesystem_usage,
     memory_usage,

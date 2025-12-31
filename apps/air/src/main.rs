@@ -95,7 +95,7 @@ async fn main() {
 
     info!("Application started");
 
-    let bno_channel = AsyncChannel::<Timestamped<bno_055::SensorData>>::new_unbounded();
+    let bno_channel = AsyncChannel::<Timestamped<bno_055::Bno055Reading>>::new_unbounded();
     let cpu_temp_channel = AsyncChannel::<Timestamped<ThermodynamicTemperature>>::new_unbounded();
     let mem_usage_channel = AsyncChannel::<Timestamped<MemoryUsageInfo>>::new_unbounded();
     let fs_usage_channel = AsyncChannel::<Timestamped<FilesystemUsageInfo>>::new_unbounded();

@@ -1,4 +1,4 @@
-create table bno_sensor_data (
+create table bno055_readings (
     id integer primary key autoincrement not null,
 
     timestamp double not null,

@@ -60,7 +60,7 @@ pub async fn db_task(data_batches: kanal::AsyncReceiver<DataBatches>) {
         }
 
         if !batch.bno_readings.is_empty() {
-            diesel::insert_into(schema::bno_sensor_data::table)
+            diesel::insert_into(schema::bno055_readings::table)
                 .values(&batch.bno_readings)
                 .execute(&mut connection)
                 .unwrap();
