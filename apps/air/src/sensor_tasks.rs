@@ -269,7 +269,21 @@ pub async fn bmp280_task(
     }
 }
 
-pub async fn data_collector(channels: RxDataChannels, batch_tx: kanal::AsyncSender<DataBatches>) {
+pub async fn fall_detector(fall_rx: kanal::AsyncReceiver<Timestamped<bno_055::Bno055Reading>>) {
+    loop {
+        if let Ok(reading) = fall_rx.recv().await {
+            if reading.data.acc_y < 600 || 60000 < reading.data.acc_y {
+                warn!("Fall detected at {}", reading.timestamp.as_secs());
+            }
+        }
+    }
+}
+
+pub async fn data_collector(
+    channels: RxDataChannels,
+    batch_tx: kanal::AsyncSender<DataBatches>,
+    fall_tx: kanal::AsyncSender<Timestamped<bno_055::Bno055Reading>>,
+) {
     info!("Started data collector");
 
     let mut batched = DataBatches::new();
@@ -281,7 +295,7 @@ pub async fn data_collector(channels: RxDataChannels, batch_tx: kanal::AsyncSend
         tokio::select! {
             _ = send_interval.tick() => {
                 if  0 < batched.total_len() {
-                    _ = batch_tx.send(batched.clone()).await;
+                    batch_tx.send(batched.clone()).await.ok();
                     info!("Sent batched data of size: {}", batched.total_len());
                 }
                 batched.clear();
@@ -297,6 +311,7 @@ pub async fn data_collector(channels: RxDataChannels, batch_tx: kanal::AsyncSend
                 batched.cpu_temps.push(NewCpuTemperature::new_from_timestamped(&cpu_temp));
             }
             Ok(bno_reading) = channels.bno_reading.recv() => {
+                fall_tx.send(bno_reading.clone()).await.ok();
                 batched.bno_readings.push(NewBnoReading::new_from_timestamped(&bno_reading));
             }
             Ok(tel_reading) = channels.tel0157_reading.recv() => {
