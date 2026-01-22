@@ -1,13 +1,12 @@
 [package]
-name = "bno-055"
+name = "bno-calibrate"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+bno-055 = { path = "../../platform/bno-055/" }
 i2cdev.workspace = true
-zerocopy = { version = "0.8.31", features = [ "derive"] }
-bitbybit = "1.4.0"
-arbitrary-int = "2.0.0"
 serde = "1.0.228"
 serde_json = "1.0.145"
+chrono = "0.4"
 

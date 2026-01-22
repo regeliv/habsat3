@@ -3,7 +3,7 @@
 //! The document excerpts mentioned in comments  refer to the "BNO055: data sheet" revsion 1.8 (October 2021)
 //! available at https://cdn-learn.adafruit.com/assets/assets/000/125/776/original/bst-bno055-ds000.pdf?1698865246
 
-use arbitrary_int::u4;
+use arbitrary_int::{u2, u4, u7};
 use bitbybit::{bitenum, bitfield};
 use core::mem::size_of;
 use i2cdev::core::I2CDevice;
@@ -20,7 +20,6 @@ pub struct Bno055<Dev: I2CDevice> {
 /// Register addresses on page 0.
 ///
 /// Section 4.3
-#[expect(dead_code)]
 mod addresses {
     /// First sensor data byte
     pub const ACC_DATA_X_LSB: u8 = 0x08; // 4.3.9
@@ -35,6 +34,9 @@ mod addresses {
 
     /// Selected operating mode (e.g config, IMU)
     pub const OPERATING_MODE: u8 = 0x3d; // 4.3.61
+
+    /// Triggers reset or self-test
+    pub const SYS_TRIGGER: u8 = 0x3f;
 
     /// First byte of sensor calibration data
     pub const ACC_OFFSET_X_LSB: u8 = 0x55; // 4.3.85
@@ -54,6 +56,13 @@ impl<Dev: I2CDevice> Bno055<Dev> {
         bno.set_operating_mode(OperatingMode::CONFIGMODE)?;
 
         Ok(bno)
+    }
+
+    pub fn reset(mut self) -> Result<(), Dev::Error> {
+        let reset = SysTriggerReg::default().with_reset_bno(true);
+
+        self.device
+            .write(&[addresses::SYS_TRIGGER, reset.raw_value()])
     }
 
     pub fn get_operating_mode(&mut self) -> Result<OperatingMode, Dev::Error> {
@@ -102,6 +111,15 @@ impl<Dev: I2CDevice> Bno055<Dev> {
         self.device.write(&buf)?;
 
         Ok(())
+    }
+
+    pub fn get_calibration_status(&mut self) -> Result<CalibrationStatus, Dev::Error> {
+        let mut buf = 0u8;
+
+        self.device.write(&[addresses::CALIBRATION_STATUS])?;
+        self.device.read(buf.as_mut_bytes())?;
+
+        Ok(CalibrationStatus::new_with_raw_value(buf))
     }
 
     pub fn reading(&mut self) -> Result<Bno055Reading, Dev::Error> {
@@ -242,6 +260,31 @@ struct OperatingModeReg {
 
     #[bits(4..=7, r)]
     reserved: u4,
+}
+
+#[bitfield(u8, debug, default = 0)]
+pub struct CalibrationStatus {
+    #[bits(0..=1, r)]
+    mag_status: u2,
+
+    #[bits(2..=3, r)]
+    acc_status: u2,
+
+    #[bits(4..=5, r)]
+    gyr_status: u2,
+
+    #[bits(6..=7, r)]
+    sys_status: u2,
+}
+
+#[bitfield(u8, debug, default = 0)]
+pub struct SysTriggerReg {
+    #[bit(5, rw)]
+    reset_bno: bool,
+
+    /// Reserved or irrelevant
+    #[bits([0..=4, 6..=7], r)]
+    reserved: u7,
 }
 
 #[cfg(test)]
