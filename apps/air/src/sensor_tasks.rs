@@ -269,16 +269,6 @@ pub async fn bmp280_task(
     }
 }
 
-pub async fn fall_detector(fall_rx: kanal::AsyncReceiver<Timestamped<bno_055::Bno055Reading>>) {
-    loop {
-        if let Ok(reading) = fall_rx.recv().await {
-            if reading.data.acc_y < 600 || 60000 < reading.data.acc_y {
-                warn!("Fall detected at {}", reading.timestamp.as_secs());
-            }
-        }
-    }
-}
-
 pub async fn data_collector(
     channels: RxDataChannels,
     batch_tx: kanal::AsyncSender<DataBatches>,

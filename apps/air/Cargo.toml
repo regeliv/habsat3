@@ -5,8 +5,8 @@ edition = "2024"
 
 [dependencies]
 axum = { version = "0.8.7", features = ["ws"] }
-tokio = { version = "1.48", features = ["full"] }
-tokio-util = { version = "0.7.17", features = ["rt"] }
+tokio.workspace = true
+tokio-util.workspace = true
 tower-http = { version = "0.6", features = ["fs"] }
 chrono = { version = "0.4", features = ["serde"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -28,3 +28,4 @@ bno-055 = { path = "../../platform/bno-055/" }
 tel0157 = { path = "../../platform/tel0157/"}
 system-sensors = { path = "../../platform/system-sensors/" }
 bmp280 = { path = "../../platform/bmp280/" }
+tape = { path = "../../platform/tape/" }

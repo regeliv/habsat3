@@ -12,15 +12,14 @@ use kanal::{AsyncReceiver, AsyncSender};
 use std::time::Duration;
 use system_sensors::{FilesystemUsageInfo, MemoryUsageInfo};
 use tokio::net::TcpListener;
-use tokio_util::task::LocalPoolHandle;
+use tokio_util::{sync::CancellationToken, task::LocalPoolHandle};
 use tracing::{Level, info};
 use uom::si::f64::ThermodynamicTemperature;
 
 use crate::{
     camera::camera_task,
-    sensor_tasks::{
-        bmp280_task, bno_task, data_collector, fall_detector, system_stats, tel0157_task,
-    },
+    sensor_tasks::{bmp280_task, bno_task, data_collector, system_stats, tel0157_task},
+    tape_control::{fall_detector, tape_control},
     types::{DataBatches, Labeled, RxDataChannels, Timestamped},
 };
 
@@ -28,6 +27,7 @@ mod camera;
 mod db;
 mod heartbeat;
 mod sensor_tasks;
+mod tape_control;
 mod types;
 
 async fn index() -> Html<&'static str> {
@@ -98,7 +98,7 @@ async fn main() {
     info!("Application started");
 
     let bno_channel = AsyncChannel::<Timestamped<bno_055::Bno055Reading>>::new_unbounded();
-    let fall_channel = AsyncChannel::<Timestamped<bno_055::Bno055Reading>>::new_unbounded();
+    let fall_data_channel = AsyncChannel::<Timestamped<bno_055::Bno055Reading>>::new_unbounded();
     let cpu_temp_channel = AsyncChannel::<Timestamped<ThermodynamicTemperature>>::new_unbounded();
     let mem_usage_channel = AsyncChannel::<Timestamped<MemoryUsageInfo>>::new_unbounded();
     let fs_usage_channel = AsyncChannel::<Timestamped<FilesystemUsageInfo>>::new_unbounded();
@@ -117,6 +117,9 @@ async fn main() {
         tel0157_reading: tel0157_reading_channel.rx,
         bmp280_reading: bmp280_reading_channel.rx,
     };
+
+    let fall_cancellation_token = CancellationToken::new();
+    let fall_cancellation_child = fall_cancellation_token.child_token();
 
     let state = AppState {};
 
@@ -169,8 +172,9 @@ async fn main() {
             || bmp280_task(rx_every_2s, bmp280_tx, false)
         }),
         i2c_pool.spawn_pinned(|| bmp280_task(rx_every_2s, bmp280_reading_channel.tx, true)),
-        fall_detector(fall_channel.rx),
-        data_collector(rx_channels, batch_channel.tx, fall_channel.tx),
+        fall_detector(fall_data_channel.rx, fall_cancellation_token),
+        tape_control(fall_cancellation_child, Duration::from_secs(15)),
+        data_collector(rx_channels, batch_channel.tx, fall_data_channel.tx),
         system_stats(
             rx_every_10s.resubscribe(),
             cpu_temp_channel.tx,

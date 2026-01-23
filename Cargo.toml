@@ -1,3 +1,9 @@
 [workspace]
 resolver = "3"
-members = [ "apps/air" , "platform/bmp280", "platform/bno-055", "platform/system-sensors", "platform/tel0157"]
+members = [ "apps/air" , "apps/bno-calibrate", "platform/bmp280", "platform/bno-055", "platform/tape", "platform/system-sensors", "platform/tel0157"]
+
+[workspace.dependencies]
+i2cdev = "0.6.2"
+chrono = "0.4"
+tokio = { version = "1.49.0", features = [ "full" ] }
+tokio-util = { version = "0.7.18", features = [ "rt" ] }
