@@ -9,7 +9,7 @@ use tracing::info;
 
 use crate::types::Tick;
 
-fn unix_time() -> Duration {
+pub fn unix_time() -> Duration {
     SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .expect("System time must not be changed to before the UNIX epoch.")

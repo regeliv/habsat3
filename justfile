@@ -4,8 +4,12 @@ build-debug:
   # Because we compile using nix toolchain, the program interpreter is some shared library in Nix store.
   # Our target does not have Nix store, therefore we override the interpreter path
   patchelf --set-interpreter /lib/ld-linux-aarch64.so.1 ./target/aarch64-unknown-linux-gnu/debug/air
+  patchelf --set-interpreter /lib/ld-linux-aarch64.so.1 ./target/aarch64-unknown-linux-gnu/debug/bno-calibrate
 
-  scp target/aarch64-unknown-linux-gnu/debug/air apps/air/src/camera.py habsat@habsat.lan:~
+  scp \
+    target/aarch64-unknown-linux-gnu/debug/air \
+    target/aarch64-unknown-linux-gnu/debug/bno-calibrate \
+    habsat@habsat.lan:~
 
 build-release:
   cargo build --release --target aarch64-unknown-linux-gnu
@@ -13,8 +17,13 @@ build-release:
   # Because we compile using nix toolchain, the program interpreter is some shared library in Nix store.
   # Our target does not have Nix store, therefore we override the interpreter path
   patchelf --set-interpreter /lib/ld-linux-aarch64.so.1 ./target/aarch64-unknown-linux-gnu/release/air
+  patchelf --set-interpreter /lib/ld-linux-aarch64.so.1 ./target/aarch64-unknown-linux-gnu/release/bno-calibrate
 
-  scp target/aarch64-unknown-linux-gnu/release/air apps/air/src/camera.py habsat@habsat.lan:~
+  scp \
+    target/aarch64-unknown-linux-gnu/release/air \
+    target/aarch64-unknown-linux-gnu/release/bno-calibrate \
+    habsat@habsat.lan:~
+
 
 mock-db-setup:
   mkdir --parents target/

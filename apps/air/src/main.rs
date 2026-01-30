@@ -141,10 +141,6 @@ async fn main() {
 
     let listener = TcpListener::bind("0.0.0.0:3000").await.unwrap();
 
-    // `CameraManager` in `libcamera-rs` is not `Send`, so we have to spawn a task pinned to one
-    // thread, `LocalPoolHandle` offers this facility.
-    let camera_pool = LocalPoolHandle::new(1);
-
     // I2C failures seem to interact badly with async filesystem operations on the same thread,
     // namely they seem to cause file `open` and file `read` to never be polled, thus blocking
     // tasks depending on these operations. Interestingly, async `interval` continues to run
@@ -181,7 +177,7 @@ async fn main() {
             fs_usage_channel.tx,
             mem_usage_channel.tx
         ),
-        camera_pool.spawn_pinned(|| camera_task(rx_every_10s)),
+        camera_task(),
         axum::serve(listener, app)
     );
 }
