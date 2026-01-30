@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 tokio.workspace = true
-uom = "0.37.0"
+uom.workspace = true
 rustix = { version = "1.1.2", features = [ "fs" ] }
 
 [dev-dependencies]

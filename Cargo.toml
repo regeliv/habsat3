@@ -1,9 +1,15 @@
 [workspace]
 resolver = "3"
-members = [ "apps/air" , "apps/bno-calibrate", "platform/bmp280", "platform/bno-055", "platform/tape", "platform/system-sensors", "platform/tel0157"]
+members = [ "apps/air" , "apps/bno-calibrate", "platform/bmp280", "platform/bno-055", "platform/tape", "platform/system-sensors", "platform/tel0157", "platform/as7341"]
 
 [workspace.dependencies]
 i2cdev = "0.6.2"
 chrono = "0.4"
+bitbybit = "1.4.0"
+arbitrary-int = "2.0.0"
 tokio = { version = "1.49.0", features = [ "full" ] }
 tokio-util = { version = "0.7.18", features = [ "rt" ] }
+zerocopy = { version = "0.8.31", features = [ "derive" ] }
+serde = { version = "1.0.228", features = [ "derive" ] }
+serde_json = "1.0.145"
+uom = "0.37.0"

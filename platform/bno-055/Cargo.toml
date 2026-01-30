@@ -5,9 +5,9 @@ edition = "2024"
 
 [dependencies]
 i2cdev.workspace = true
-zerocopy = { version = "0.8.31", features = [ "derive"] }
-bitbybit = "1.4.0"
-arbitrary-int = "2.0.0"
-serde = "1.0.228"
-serde_json = "1.0.145"
+bitbybit.workspace = true
+arbitrary-int.workspace = true
+zerocopy.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 
