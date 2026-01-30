@@ -11,12 +11,17 @@ pub async fn fall_detector(
     fall_cancellation_token: CancellationToken,
 ) {
     loop {
-        if let Ok(reading) = fall_data_rx.recv().await
-            && (reading.data.acc_y < 600 || 60000 < reading.data.acc_y)
-        {
-            warn!("Fall detected at {}", reading.timestamp.as_secs());
+        if let Ok(reading) = fall_data_rx.recv().await {
+            let mag = magnitude(reading.data.acc_x, reading.data.acc_y, reading.data.acc_z);
+            if mag < 600.0 {
+                warn!(
+                    "Fall detected at {}, acc magnitude: {}",
+                    reading.timestamp.as_secs(),
+                    mag
+                );
 
-            fall_cancellation_token.cancel();
+                fall_cancellation_token.cancel();
+            }
         }
     }
 }
@@ -70,4 +75,12 @@ async fn retract(tape: &Mutex<Tape>, token: &CancellationToken) -> tokio::io::Re
 
     info!("Tape retracted");
     Ok(())
+}
+
+fn magnitude(acc_x: i16, acc_y: i16, acc_z: i16) -> f32 {
+    let acc_x = acc_x as f32;
+    let acc_y = acc_y as f32;
+    let acc_z = acc_z as f32;
+
+    (acc_x.powi(2) + acc_y.powi(2) + acc_z.powi(2)).sqrt()
 }

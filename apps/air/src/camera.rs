@@ -80,7 +80,7 @@ pub async fn camera_task(mut heartbeat: broadcast::Receiver<Tick>) -> io::Result
                         i += 1;
                         match sender.send(req.as_bytes().to_owned().into()).await {
                             Ok(_) => info!("Queued camera action"),
-                            Err(e) => warn!("Failed to queue camera actiont: {e:?}"),
+                            Err(e) => warn!("Failed to queue camera action: {e:?}"),
                         }
                     }
                     Err(RecvError::Lagged(_)) => {

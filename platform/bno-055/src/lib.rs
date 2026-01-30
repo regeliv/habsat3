@@ -153,34 +153,34 @@ impl<Dev: I2CDevice> Bno055<Dev> {
     Clone,
 )]
 pub struct Bno055Reading {
-    pub acc_x: u16,
-    pub acc_y: u16,
-    pub acc_z: u16,
+    pub acc_x: i16,
+    pub acc_y: i16,
+    pub acc_z: i16,
 
-    pub mag_x: u16,
-    pub mag_y: u16,
-    pub mag_z: u16,
+    pub mag_x: i16,
+    pub mag_y: i16,
+    pub mag_z: i16,
 
-    pub gyr_x: u16,
-    pub gyr_y: u16,
-    pub gyr_z: u16,
+    pub gyr_x: i16,
+    pub gyr_y: i16,
+    pub gyr_z: i16,
 
-    pub eul_heading: u16,
-    pub eul_roll: u16,
-    pub eul_pitch: u16,
+    pub eul_heading: i16,
+    pub eul_roll: i16,
+    pub eul_pitch: i16,
 
-    pub qua_w: u16,
-    pub qua_x: u16,
-    pub qua_y: u16,
-    pub qua_z: u16,
+    pub qua_w: i16,
+    pub qua_x: i16,
+    pub qua_y: i16,
+    pub qua_z: i16,
 
-    pub lia_x: u16,
-    pub lia_y: u16,
-    pub lia_z: u16,
+    pub lia_x: i16,
+    pub lia_y: i16,
+    pub lia_z: i16,
 
-    pub grv_x: u16,
-    pub grv_y: u16,
-    pub grv_z: u16,
+    pub grv_x: i16,
+    pub grv_y: i16,
+    pub grv_z: i16,
 }
 const _: () = assert!(size_of::<Bno055Reading>() == addresses::SENSOR_DATA_LENGTH as usize);
 
