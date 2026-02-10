@@ -28,3 +28,4 @@ tel0157 = { path = "../../platform/tel0157/"}
 system-sensors = { path = "../../platform/system-sensors/" }
 bmp280 = { path = "../../platform/bmp280/" }
 tape = { path = "../../platform/tape/" }
+as7341 = { path = "../../platform/as7341/"}

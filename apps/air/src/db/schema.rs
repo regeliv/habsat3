@@ -1,6 +1,23 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
+    as7341_readings (id) {
+        id -> Integer,
+        timestamp -> Double,
+        timeout -> Bool,
+        nm415 -> Integer,
+        nm445 -> Integer,
+        nm480 -> Integer,
+        nm515 -> Integer,
+        nm555 -> Integer,
+        nm590 -> Integer,
+        nm630 -> Integer,
+        nm680 -> Integer,
+        nir -> Integer,
+    }
+}
+
+diesel::table! {
     bmp280_readings (id) {
         id -> Integer,
         bmp_id -> Integer,
@@ -79,6 +96,7 @@ diesel::table! {
 }
 
 diesel::allow_tables_to_appear_in_same_query!(
+    as7341_readings,
     bmp280_readings,
     bno055_readings,
     cpu_temperature,

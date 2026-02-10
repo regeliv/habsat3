@@ -3,8 +3,8 @@ use system_sensors::{FilesystemUsageInfo, MemoryUsageInfo};
 use uom::si::f64::ThermodynamicTemperature;
 
 use crate::db::models::{
-    NewBmp280Reading, NewBnoReading, NewCpuTemperature, NewFsUsage, NewMemoryUsage,
-    NewTel0157Reading,
+    NewAs7341Reading, NewBmp280Reading, NewBnoReading, NewCpuTemperature, NewFsUsage,
+    NewMemoryUsage, NewTel0157Reading,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -50,6 +50,7 @@ pub struct DataBatches {
     pub bno_readings: Vec<NewBnoReading>,
     pub tel0157_readings: Vec<NewTel0157Reading>,
     pub bmp280_readings: Vec<NewBmp280Reading>,
+    pub as7341_readings: Vec<NewAs7341Reading>,
 }
 
 impl DataBatches {
@@ -83,4 +84,5 @@ pub struct RxDataChannels {
     pub bno_reading: kanal::AsyncReceiver<Timestamped<bno_055::Bno055Reading>>,
     pub tel0157_reading: kanal::AsyncReceiver<Timestamped<tel0157::Tel0157Reading>>,
     pub bmp280_reading: kanal::AsyncReceiver<Timestamped<Labeled<bmp280::Bmp280Reading>>>,
+    pub as7341_reading: kanal::AsyncReceiver<NewAs7341Reading>,
 }

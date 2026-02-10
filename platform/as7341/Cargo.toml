@@ -4,3 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+i2cdev.workspace = true
+zerocopy.workspace = true
+bitbybit.workspace = true
+arbitrary-int.workspace = true
+tokio.workspace = true
+thiserror.workspace = true

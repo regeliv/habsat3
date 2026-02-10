@@ -177,9 +177,27 @@ impl NewFromTimestamped for NewBmp280Reading {
         Self {
             timestamp: data.timestamp.as_secs(),
             bmp_id: data.data.label as i32,
-            // With some many `data`s were are likely too generic...
+            // With some many `data`s we are likely too generic...
             temperature_degrees_celsius: data.data.data.temperature.get::<degree_celsius>(),
             pressure_pascals: data.data.data.pressure.get::<pascal>(),
         }
     }
+}
+
+#[derive(Insertable, Debug, Clone)]
+#[diesel(table_name = crate::db::schema::as7341_readings)]
+pub struct NewAs7341Reading {
+    pub timestamp: f64,
+
+    pub timeout: bool,
+
+    pub nm415: i32,
+    pub nm445: i32,
+    pub nm480: i32,
+    pub nm515: i32,
+    pub nm555: i32,
+    pub nm590: i32,
+    pub nm630: i32,
+    pub nm680: i32,
+    pub nir: i32,
 }

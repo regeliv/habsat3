@@ -18,7 +18,10 @@ use uom::si::f64::ThermodynamicTemperature;
 
 use crate::{
     camera::camera_task,
-    sensor_tasks::{bmp280_task, bno_task, data_collector, system_stats, tel0157_task},
+    db::models::NewAs7341Reading,
+    sensor_tasks::{
+        as7341_task, bmp280_task, bno_task, data_collector, system_stats, tel0157_task,
+    },
     tape_control::{fall_detector, tape_control},
     types::{DataBatches, Labeled, RxDataChannels, Timestamped},
 };
@@ -106,6 +109,7 @@ async fn main() {
         AsyncChannel::<Timestamped<tel0157::Tel0157Reading>>::new_unbounded();
     let bmp280_reading_channel =
         AsyncChannel::<Timestamped<Labeled<bmp280::Bmp280Reading>>>::new_unbounded();
+    let as7341_reading_channel = AsyncChannel::<NewAs7341Reading>::new_unbounded();
 
     let batch_channel = AsyncChannel::<DataBatches>::new_unbounded();
 
@@ -116,6 +120,7 @@ async fn main() {
         bno_reading: bno_channel.rx,
         tel0157_reading: tel0157_reading_channel.rx,
         bmp280_reading: bmp280_reading_channel.rx,
+        as7341_reading: as7341_reading_channel.rx,
     };
 
     let fall_cancellation_token = CancellationToken::new();
@@ -158,6 +163,10 @@ async fn main() {
         db_pool.spawn_pinned(|| db::db_task(batch_channel.rx)),
         ms100_heartbeat.run(),
         i2c_pool.spawn_pinned(|| bno_task(bno_sensor_config, rx_every_100ms, bno_channel.tx)),
+        i2c_pool.spawn_pinned({
+            let rx_every_2s = rx_every_2s.resubscribe();
+            || as7341_task::as7341_task(rx_every_2s, as7341_reading_channel.tx)
+        }),
         i2c_pool.spawn_pinned({
             let rx_every_2s = rx_every_2s.resubscribe();
             || tel0157_task(rx_every_2s, tel0157_reading_channel.tx)

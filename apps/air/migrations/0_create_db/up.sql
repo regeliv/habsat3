@@ -86,3 +86,21 @@ create table cpu_temperature (
 
   degrees_celsius double not null
 );
+
+create table as7341_readings (
+    id integer primary key autoincrement not null,
+
+    timestamp double not null,
+
+    timeout bool not null,
+
+    nm415 integer not null,
+    nm445 integer not null,
+    nm480 integer not null,
+    nm515 integer not null,
+    nm555 integer not null,
+    nm590 integer not null,
+    nm630 integer not null,
+    nm680 integer not null,
+    nir integer not null
+);

@@ -80,6 +80,13 @@ pub async fn db_task(data_batches: kanal::AsyncReceiver<DataBatches>) {
                 .unwrap();
         }
 
+        if !batch.as7341_readings.is_empty() {
+            diesel::insert_into(schema::as7341_readings::table)
+                .values(&batch.as7341_readings)
+                .execute(&mut connection)
+                .unwrap();
+        }
+
         info!("Processed data batch");
     }
 }

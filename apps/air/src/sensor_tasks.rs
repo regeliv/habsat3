@@ -3,6 +3,7 @@ use crate::{
         NewBmp280Reading, NewBnoReading, NewCpuTemperature, NewFromTimestamped as _, NewFsUsage,
         NewMemoryUsage, NewTel0157Reading,
     },
+    sensor_tasks::utils::Backoff,
     types::{DataBatches, Labeled, RxDataChannels, Tick, Timestamped},
 };
 use bno_055::{BNO_055_I2C_ADDR, SensorConfig};
@@ -19,6 +20,10 @@ use tokio::{
 };
 use tracing::{info, warn};
 use uom::si::f64::ThermodynamicTemperature;
+
+mod utils;
+
+pub mod as7341_task;
 
 pub async fn system_stats(
     mut heartbeat: broadcast::Receiver<Tick>,
@@ -181,34 +186,6 @@ pub async fn tel0157_task(
     }
 }
 
-struct Backoff {
-    base: Duration,
-    current: Duration,
-    max: Duration,
-}
-
-impl Backoff {
-    pub fn new(base: Duration, max: Duration) -> Self {
-        Self {
-            base,
-            current: base,
-            max,
-        }
-    }
-
-    pub fn multiply(&mut self, multiplier: u32) {
-        self.current = (self.current * multiplier).min(self.max);
-    }
-
-    pub fn reset(&mut self) {
-        self.current = self.base
-    }
-
-    pub fn get(&self) -> Duration {
-        self.current
-    }
-}
-
 pub async fn bmp280_task(
     mut heartbeat: broadcast::Receiver<Tick>,
     bmp280_tx: kanal::AsyncSender<Timestamped<Labeled<bmp280::Bmp280Reading>>>,
@@ -309,6 +286,9 @@ pub async fn data_collector(
             }
             Ok(bmp280_reading) = channels.bmp280_reading.recv() => {
                 batched.bmp280_readings.push(NewBmp280Reading::new_from_timestamped(&bmp280_reading))
+            }
+            Ok(as7341_reading) = channels.as7341_reading.recv() => {
+                batched.as7341_readings.push(as7341_reading)
             }
 
         }
