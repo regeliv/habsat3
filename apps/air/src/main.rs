@@ -88,12 +88,18 @@ async fn main() {
     };
 
     let key = std::env::var("LORA_ENCRYPTION_KEY")
-        .expect("LORA_ENCRYPTION_KEY envirnoment variable must set to a 32-byte long string");
+        .expect("LORA_ENCRYPTION_KEY environment variable must set to a 32-byte long string");
 
     let key: [u8; 32] = key
         .as_bytes()
         .try_into()
         .expect("Key must be exactly 32 bytes long");
+
+    let tape_extension_time_offset = std::env::var("TAPE_EXTENSION_TIME_OFFSET").expect("TAPE_EXTENSION_TIME_OFFSET environment variable must be set to a positive integer representing the number of minutes");
+    let tape_extension_time_offset = tape_extension_time_offset
+        .parse::<u64>()
+        .expect("TAPE_EXTENSION_TIME_OFFSET must be a positive integer (minutes)");
+    let tape_extension_time_offset = Duration::from_secs(tape_extension_time_offset * 60);
 
     // I2C failures seem to interact badly with async filesystem operations on the same thread,
     // namely they seem to cause file `open` and file `read` to never be polled, thus blocking
@@ -128,7 +134,7 @@ async fn main() {
         i2c_pool.spawn_pinned(|| bmp280_task(rx_every_2s, bmp280_reading_channel.tx, true)),
         i2c_pool.spawn_pinned(move || lora_task(gps_channel.rx, key)),
         fall_detector(fall_data_channel.rx, fall_cancellation_token),
-        tape_control(fall_cancellation_child, Duration::from_secs(15)),
+        tape_control(fall_cancellation_child, tape_extension_time_offset),
         data_collector(
             rx_channels,
             batch_channel.tx,
