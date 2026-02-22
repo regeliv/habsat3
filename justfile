@@ -1,23 +1,28 @@
 build-debug:
   cargo build --target aarch64-unknown-linux-gnu
+  cargo build -p lora-listener --target x86_64-unknown-linux-gnu
 
   # Because we compile using nix toolchain, the program interpreter is some shared library in Nix store.
   # Our target does not have Nix store, therefore we override the interpreter path
   patchelf --set-interpreter /lib/ld-linux-aarch64.so.1 ./target/aarch64-unknown-linux-gnu/debug/air
   patchelf --set-interpreter /lib/ld-linux-aarch64.so.1 ./target/aarch64-unknown-linux-gnu/debug/bno-calibrate
+  patchelf --set-interpreter /lib/ld-linux-aarch64.so.1 ./target/aarch64-unknown-linux-gnu/debug/lora-listener
 
   scp \
     target/aarch64-unknown-linux-gnu/debug/air \
     target/aarch64-unknown-linux-gnu/debug/bno-calibrate \
+    target/aarch64-unknown-linux-gnu/debug/lora-listener \
     habsat@habsat.lan:~
 
 build-release:
   cargo build --release --target aarch64-unknown-linux-gnu
+  cargo build --release -p lora-listener --target x86_64-unknown-linux-gnu
 
   # Because we compile using nix toolchain, the program interpreter is some shared library in Nix store.
   # Our target does not have Nix store, therefore we override the interpreter path
   patchelf --set-interpreter /lib/ld-linux-aarch64.so.1 ./target/aarch64-unknown-linux-gnu/release/air
   patchelf --set-interpreter /lib/ld-linux-aarch64.so.1 ./target/aarch64-unknown-linux-gnu/release/bno-calibrate
+  patchelf --set-interpreter /lib/ld-linux-aarch64.so.1 ./target/aarch64-unknown-linux-gnu/release/lora-listener
 
   scp \
     target/aarch64-unknown-linux-gnu/release/air \

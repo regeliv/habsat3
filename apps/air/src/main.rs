@@ -20,7 +20,8 @@ use crate::{
     camera::camera_task,
     db::models::NewAs7341Reading,
     sensor_tasks::{
-        as7341_task, bmp280_task, bno_task, data_collector, system_stats, tel0157_task,
+        as7341_task, bmp280_task, bno_task, data_collector, lora_task::lora_task, system_stats,
+        tel0157_task,
     },
     tape_control::{fall_detector, tape_control},
     types::{DataBatches, Labeled, RxDataChannels, Timestamped},
@@ -107,6 +108,7 @@ async fn main() {
     let fs_usage_channel = AsyncChannel::<Timestamped<FilesystemUsageInfo>>::new_unbounded();
     let tel0157_reading_channel =
         AsyncChannel::<Timestamped<tel0157::Tel0157Reading>>::new_unbounded();
+    let gps_channel = AsyncChannel::<Timestamped<tel0157::Tel0157Reading>>::new_unbounded();
     let bmp280_reading_channel =
         AsyncChannel::<Timestamped<Labeled<bmp280::Bmp280Reading>>>::new_unbounded();
     let as7341_reading_channel = AsyncChannel::<NewAs7341Reading>::new_unbounded();
@@ -138,6 +140,14 @@ async fn main() {
         let file = std::fs::read_to_string("bno_sensor_config.json").unwrap();
         serde_json::from_str::<SensorConfig>(&file).unwrap()
     };
+
+    let key = std::env::var("LORA_ENCRYPTION_KEY")
+        .expect("LORA_ENCRYPTION_KEY envirnoment variable must set to a 32-byte long string");
+
+    let key: [u8; 32] = key
+        .as_bytes()
+        .try_into()
+        .expect("Key must be exactly 32 bytes long");
 
     let app = Router::new()
         .route("/", get(index))
@@ -177,9 +187,15 @@ async fn main() {
             || bmp280_task(rx_every_2s, bmp280_tx, false)
         }),
         i2c_pool.spawn_pinned(|| bmp280_task(rx_every_2s, bmp280_reading_channel.tx, true)),
+        i2c_pool.spawn_pinned(move || lora_task(gps_channel.rx, key)),
         fall_detector(fall_data_channel.rx, fall_cancellation_token),
         tape_control(fall_cancellation_child, Duration::from_secs(15)),
-        data_collector(rx_channels, batch_channel.tx, fall_data_channel.tx),
+        data_collector(
+            rx_channels,
+            batch_channel.tx,
+            fall_data_channel.tx,
+            gps_channel.tx
+        ),
         system_stats(
             rx_every_10s.resubscribe(),
             cpu_temp_channel.tx,

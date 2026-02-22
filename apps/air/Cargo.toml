@@ -14,6 +14,7 @@ serde_json.workspace = true
 zerocopy.workspace = true
 uom.workspace = true
 i2cdev.workspace = true
+spidev.workspace = true
 kanal = "0.1.1"
 tracing = "0.1.44"
 tracing-subscriber = "0.3.22"
@@ -29,3 +30,5 @@ system-sensors = { path = "../../platform/system-sensors/" }
 bmp280 = { path = "../../platform/bmp280/" }
 tape = { path = "../../platform/tape/" }
 as7341 = { path = "../../platform/as7341/"}
+lora = { path = "../../platform/lora/"}
+common = { path = "../common/" }

@@ -1,0 +1,11 @@
+[package]
+name = "lora"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bitbybit.workspace = true
+arbitrary-int.workspace = true
+zerocopy.workspace = true
+spidev.workspace = true
+heapless.workspace = true

@@ -1,8 +1,9 @@
 [workspace]
 resolver = "3"
-members = [ "apps/air" , "apps/bno-calibrate", "platform/bmp280", "platform/bno-055", "platform/tape", "platform/system-sensors", "platform/tel0157", "platform/as7341"]
+members = [ "apps/air" , "apps/bno-calibrate", "platform/bmp280", "platform/bno-055", "platform/tape", "platform/system-sensors", "platform/tel0157", "platform/as7341", "platform/lora", "apps/lora-listener", "apps/common"]
 
 [workspace.dependencies]
+spidev = "0.7.1"
 i2cdev = "0.6.2"
 chrono = "0.4"
 bitbybit = "1.4.0"
@@ -14,3 +15,5 @@ serde = { version = "1.0.228", features = [ "derive" ] }
 serde_json = "1.0.145"
 uom = "0.37.0"
 thiserror = "2.0.18"
+heapless = "0.9.2"
+chacha20poly1305 = "0.10.1"

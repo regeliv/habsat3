@@ -24,6 +24,7 @@ use uom::si::f64::ThermodynamicTemperature;
 mod utils;
 
 pub mod as7341_task;
+pub mod lora_task;
 
 pub async fn system_stats(
     mut heartbeat: broadcast::Receiver<Tick>,
@@ -250,6 +251,7 @@ pub async fn data_collector(
     channels: RxDataChannels,
     batch_tx: kanal::AsyncSender<DataBatches>,
     fall_tx: kanal::AsyncSender<Timestamped<bno_055::Bno055Reading>>,
+    gps_tx: kanal::AsyncSender<Timestamped<tel0157::Tel0157Reading>>,
 ) {
     info!("Started data collector");
 
@@ -282,6 +284,7 @@ pub async fn data_collector(
                 batched.bno_readings.push(NewBnoReading::new_from_timestamped(&bno_reading));
             }
             Ok(tel_reading) = channels.tel0157_reading.recv() => {
+                gps_tx.send(tel_reading.clone()).await.ok();
                 batched.tel0157_readings.push(NewTel0157Reading::new_from_timestamped(&tel_reading))
             }
             Ok(bmp280_reading) = channels.bmp280_reading.recv() => {
