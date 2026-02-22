@@ -10,16 +10,24 @@ pub async fn fall_detector(
     fall_data_rx: kanal::AsyncReceiver<Timestamped<bno_055::Bno055Reading>>,
     fall_cancellation_token: CancellationToken,
 ) {
+    let mut fall_count = 0;
+
     loop {
         if let Ok(reading) = fall_data_rx.recv().await {
             let mag = magnitude(reading.data.acc_x, reading.data.acc_y, reading.data.acc_z);
+
             if mag < 600.0 {
+                fall_count += 1;
+            } else {
+                fall_count = 0;
+            }
+
+            if 4 <= fall_count {
                 warn!(
                     "Fall detected at {}, acc magnitude: {}",
                     reading.timestamp.as_secs(),
                     mag
                 );
-
                 fall_cancellation_token.cancel();
             }
         }
