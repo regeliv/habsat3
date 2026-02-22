@@ -10,8 +10,8 @@ use crate::{
     camera::camera_task,
     db::models::NewAs7341Reading,
     sensor_tasks::{
-        as7341_task, bmp280_task, bno_task, data_collector, lora_task::lora_task, system_stats,
-        tel0157_task,
+        as7341_task, bmp280_task, bno_task, data_collector, lora_task::lora_task,
+        system_stats_task::system_stats_task, tel0157_task,
     },
     tape_control::{fall_detector, tape_control},
     types::{DataBatches, Labeled, RxDataChannels, Timestamped},
@@ -135,7 +135,7 @@ async fn main() {
             fall_data_channel.tx,
             gps_channel.tx
         ),
-        system_stats(
+        system_stats_task(
             rx_every_10s.resubscribe(),
             cpu_temp_channel.tx,
             fs_usage_channel.tx,
