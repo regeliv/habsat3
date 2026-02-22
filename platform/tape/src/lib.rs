@@ -11,32 +11,40 @@ pub struct Tape {
     pwm: Pwm,
 }
 
+const PERIOD: Duration = Duration::from_millis(20);
+
 impl Tape {
     pub async fn new() -> tokio::io::Result<Self> {
         let mut pwm = Pwm::new().await?;
 
         pwm.set_state(ActivationState::Disabled).await?;
-        pwm.set_period(Duration::from_micros(20000)).await?;
+        pwm.set_period(PERIOD).await?;
 
         Ok(Self { pwm })
     }
 
     pub async fn extend(&mut self) -> tokio::io::Result<()> {
+        let extension_duty_cycle = PERIOD.mul_f32(0.07);
+        let extension_time = Duration::from_secs(4);
+
         self.pwm.set_state(ActivationState::Disabled).await?;
-        self.pwm.set_duty_cycle(Duration::from_micros(500)).await?;
+        self.pwm.set_duty_cycle(extension_duty_cycle).await?;
         self.pwm.set_state(ActivationState::Enabled).await?;
 
-        tokio::time::sleep(Duration::from_secs(10)).await;
+        tokio::time::sleep(extension_time).await;
 
         self.pwm.set_state(ActivationState::Disabled).await
     }
 
     pub async fn retract(&mut self) -> tokio::io::Result<()> {
+        let retraction_duty_cycle = PERIOD.mul_f32(0.12);
+        let retraction_time = Duration::from_secs(3);
+
         self.pwm.set_state(ActivationState::Disabled).await?;
-        self.pwm.set_duty_cycle(Duration::from_micros(1000)).await?;
+        self.pwm.set_duty_cycle(retraction_duty_cycle).await?;
         self.pwm.set_state(ActivationState::Enabled).await?;
 
-        tokio::time::sleep(Duration::from_secs(10)).await;
+        tokio::time::sleep(retraction_time).await;
 
         self.pwm.set_state(ActivationState::Disabled).await
     }
