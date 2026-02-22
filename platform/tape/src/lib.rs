@@ -65,7 +65,6 @@ struct Pwm {
 
 impl Pwm {
     async fn new() -> tokio::io::Result<Self> {
-        eprintln!("0");
         let mut opts = tokio::fs::OpenOptions::new();
 
         opts.write(true).read(false);

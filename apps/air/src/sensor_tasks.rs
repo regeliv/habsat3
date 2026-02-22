@@ -6,7 +6,6 @@ use crate::{
     sensor_tasks::utils::Backoff,
     types::{DataBatches, Labeled, RxDataChannels, Tick, Timestamped},
 };
-use bno_055::{BNO_055_I2C_ADDR, SensorConfig};
 use i2cdev::linux::{LinuxI2CDevice, LinuxI2CError};
 use std::time::Duration;
 use tel0157::TEL0157_I2C_ADDR;
@@ -16,44 +15,9 @@ use tracing::{info, warn};
 mod utils;
 
 pub mod as7341_task;
+pub mod bno_task;
 pub mod lora_task;
 pub mod system_stats_task;
-
-pub async fn bno_task(
-    bno_sensor_config: SensorConfig,
-    mut heartbeat: broadcast::Receiver<Tick>,
-    bno_tx: kanal::AsyncSender<Timestamped<bno_055::Bno055Reading>>,
-) -> Result<(), LinuxI2CError> {
-    info!("Started BNO-055 task");
-
-    let dev = LinuxI2CDevice::new("/dev/i2c-1", BNO_055_I2C_ADDR as u16)
-        .inspect_err(|e| warn!("Failed to open I2C device: {e}"))?;
-
-    let mut bno = bno_055::Bno055::new(dev)?;
-    info!("BNO-055 created");
-
-    bno.set_sensor_config(&bno_sensor_config)?;
-    info!("BNO-055 config set to {:?}", bno_sensor_config);
-
-    bno.set_operating_mode(bno_055::OperatingMode::NDOF_FMC_OFF)?;
-
-    loop {
-        match heartbeat.recv().await {
-            Ok(tick) => {
-                let data = bno.reading()?;
-                _ = bno_tx.send(Timestamped::new(tick, data)).await;
-            }
-
-            Err(RecvError::Lagged(_)) => {
-                warn!("Skipped a beat");
-            }
-
-            Err(RecvError::Closed) => {
-                unreachable!("Heartbeat should never stop ticking while a task is running");
-            }
-        }
-    }
-}
 
 pub async fn tel0157_task(
     mut heartbeat: broadcast::Receiver<Tick>,
