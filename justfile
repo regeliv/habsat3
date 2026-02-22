@@ -37,3 +37,13 @@ mock-db-setup:
 
 db-regen:
   diesel migration redo --config-file apps/air/diesel.toml --database-url target/mock.db 
+
+test:
+  cargo test --target x86_64-unknown-linux-gnu \
+    -p bmp280 \
+    -p bno-055 \
+    -p tape \
+    -p system-sensors \
+    -p tel0157 \
+    -p as7341 \
+    -p lora

@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = [ "apps/air" , "apps/bno-calibrate", "platform/bmp280", "platform/bno-055", "platform/tape", "platform/system-sensors", "platform/tel0157", "platform/as7341", "platform/lora", "apps/lora-listener", "apps/common"]
+members = [ "apps/air" , "apps/bno-calibrate", "platform/bmp280", "platform/bno-055", "platform/tape", "platform/system-sensors", "platform/tel0157", "platform/as7341", "platform/lora", "apps/lora-listener", "apps/common",]
 
 [workspace.dependencies]
 spidev = "0.7.1"
