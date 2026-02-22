@@ -1,4 +1,4 @@
-use std::{ops::ControlFlow, time::Duration};
+use std::time::Duration;
 
 pub struct Backoff {
     base: Duration,
@@ -25,38 +25,5 @@ impl Backoff {
 
     pub fn get(&self) -> Duration {
         self.current
-    }
-}
-
-pub struct BackoffReset<Dev, Reset, Loop>
-where
-    Reset: AsyncFn() -> ControlFlow<Dev, ()>,
-    Loop: AsyncFnMut(&mut Dev) -> (),
-{
-    pub backoff: Backoff,
-    pub reset: Reset,
-    pub data_loop: Loop,
-}
-
-impl<Dev, Reset, Loop> BackoffReset<Dev, Reset, Loop>
-where
-    Reset: AsyncFn() -> ControlFlow<Dev, ()>,
-    Loop: AsyncFnMut(&mut Dev) -> (),
-{
-    pub async fn run(&mut self) -> () {
-        loop {
-            let dev = (self.reset)().await;
-
-            match dev {
-                ControlFlow::Break(mut dev) => {
-                    self.backoff.reset();
-                    (self.data_loop)(&mut dev).await;
-                }
-                ControlFlow::Continue(()) => {
-                    tokio::time::sleep(self.backoff.get()).await;
-                    self.backoff.multiply(2);
-                }
-            }
-        }
     }
 }
