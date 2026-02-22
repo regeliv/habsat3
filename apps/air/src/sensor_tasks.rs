@@ -3,81 +3,19 @@ use crate::{
         NewBmp280Reading, NewBnoReading, NewCpuTemperature, NewFromTimestamped as _, NewFsUsage,
         NewMemoryUsage, NewTel0157Reading,
     },
-    sensor_tasks::utils::Backoff,
-    types::{DataBatches, Labeled, RxDataChannels, Tick, Timestamped},
+    types::{DataBatches, RxDataChannels, Timestamped},
 };
-use i2cdev::linux::LinuxI2CDevice;
 use std::time::Duration;
-use tokio::sync::broadcast::{self, error::RecvError};
-use tracing::{info, warn};
+use tracing::info;
 
 mod utils;
 
 pub mod as7341_task;
+pub mod bmp280_task;
 pub mod bno_task;
 pub mod lora_task;
 pub mod system_stats_task;
 pub mod tel0157_task;
-
-pub async fn bmp280_task(
-    mut heartbeat: broadcast::Receiver<Tick>,
-    bmp280_tx: kanal::AsyncSender<Timestamped<Labeled<bmp280::Bmp280Reading>>>,
-    alt_address: bool,
-) {
-    let address = if alt_address { 0x77 } else { 0x76 };
-    let label = if alt_address { 0x1 } else { 0x0 };
-
-    let mut backoff = Backoff::new(Duration::from_secs(10), Duration::from_hours(1));
-
-    info!("Started BMP280@{address:x} task");
-
-    loop {
-        let Ok(device) = LinuxI2CDevice::new("/dev/i2c-1", address)
-            .inspect_err(|e| warn!("Failed to create BMP280@{address:x} i2c device: {e}"))
-        else {
-            tokio::time::sleep(backoff.get()).await;
-            backoff.multiply(2);
-            continue;
-        };
-
-        let Ok(mut bmp280) = bmp280::Bmp280::new(device)
-            .inspect_err(|e| warn!("Failed to setup BMP280@{address:x}: {e}"))
-        else {
-            tokio::time::sleep(backoff.get()).await;
-            backoff.multiply(2);
-            continue;
-        };
-
-        backoff.reset();
-
-        info!("BMP280@{address:x} setup successfully");
-
-        loop {
-            match heartbeat.recv().await {
-                Ok(tick) => {
-                    let Ok(reading) = bmp280
-                        .reading()
-                        .await
-                        .inspect_err(|e| warn!("Failed to get BMP280@{address:x} reading: {e}"))
-                    else {
-                        break;
-                    };
-                    _ = bmp280_tx
-                        .send(Timestamped::new(tick, Labeled::new(label, reading)))
-                        .await;
-                }
-
-                Err(RecvError::Lagged(_)) => {
-                    warn!("Skipped a beat");
-                }
-
-                Err(RecvError::Closed) => {
-                    unreachable!("Heartbeat should never stop ticking while a task is running");
-                }
-            }
-        }
-    }
-}
 
 pub async fn data_collector(
     channels: RxDataChannels,
