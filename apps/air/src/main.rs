@@ -11,7 +11,7 @@ use crate::{
     db::models::NewAs7341Reading,
     sensor_tasks::{
         as7341_task, bmp280_task, bno_task::bno_task, data_collector, lora_task::lora_task,
-        system_stats_task::system_stats_task, tel0157_task,
+        system_stats_task::system_stats_task, tel0157_task::tel0157_task,
     },
     tape_control::{fall_detector, tape_control},
     types::{DataBatches, Labeled, RxDataChannels, Timestamped},

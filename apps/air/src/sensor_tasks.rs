@@ -6,9 +6,8 @@ use crate::{
     sensor_tasks::utils::Backoff,
     types::{DataBatches, Labeled, RxDataChannels, Tick, Timestamped},
 };
-use i2cdev::linux::{LinuxI2CDevice, LinuxI2CError};
+use i2cdev::linux::LinuxI2CDevice;
 use std::time::Duration;
-use tel0157::TEL0157_I2C_ADDR;
 use tokio::sync::broadcast::{self, error::RecvError};
 use tracing::{info, warn};
 
@@ -18,35 +17,7 @@ pub mod as7341_task;
 pub mod bno_task;
 pub mod lora_task;
 pub mod system_stats_task;
-
-pub async fn tel0157_task(
-    mut heartbeat: broadcast::Receiver<Tick>,
-    tel0157_tx: kanal::AsyncSender<Timestamped<tel0157::Tel0157Reading>>,
-) -> Result<(), LinuxI2CError> {
-    info!("Started TEL0157 task");
-
-    let dev = LinuxI2CDevice::new("/dev/i2c-1", TEL0157_I2C_ADDR as u16)
-        .inspect_err(|e| warn!("Failed to open i2c device: {e}"))?;
-
-    let mut tel0157 = tel0157::Tel0157::new(dev)?;
-
-    loop {
-        match heartbeat.recv().await {
-            Ok(tick) => {
-                let reading = tel0157.reading()?;
-                _ = tel0157_tx.send(Timestamped::new(tick, reading)).await;
-            }
-
-            Err(RecvError::Lagged(_)) => {
-                warn!("Skipped a beat");
-            }
-
-            Err(RecvError::Closed) => {
-                unreachable!("Heartbeat should never stop ticking while a task is running");
-            }
-        }
-    }
-}
+pub mod tel0157_task;
 
 pub async fn bmp280_task(
     mut heartbeat: broadcast::Receiver<Tick>,
