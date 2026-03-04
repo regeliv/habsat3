@@ -1,32 +1,32 @@
-use crate::types::DataBatches;
-use diesel::{Connection, RunQueryDsl, SqliteConnection};
+use crate::{heartbeat, types::DataBatches};
+use diesel::{Connection, RunQueryDsl, SqliteConnection, connection::SimpleConnection};
 use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
 use futures::StreamExt as _;
-use tokio::io;
 use tracing::info;
 
 pub mod models;
 pub mod schema;
 
-const DB_PATH: &str = "habsat.db";
 const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations/");
 
 async fn create_db() -> SqliteConnection {
-    match tokio::fs::remove_file(DB_PATH).await {
-        Err(e) if e.kind() != io::ErrorKind::NotFound => {
-            panic!("Failed to remove old database file");
-        }
-        _ => {}
-    }
+    let now = heartbeat::unix_time();
+    let db_file = format!("db/{}.db", now.as_secs_f64());
 
-    let mut connection = SqliteConnection::establish(DB_PATH).expect(
+    let mut connection = SqliteConnection::establish(&db_file).expect(
         "Creating database must succeed, because it is an integral part of the application",
     );
-    info!("Connected to database at {DB_PATH}");
+    info!("Connected to database at {db_file}");
 
     connection
         .run_pending_migrations(MIGRATIONS)
         .expect("Creating schema must succeed, because it is an integral part of the application");
+
+    // With EXTRA, we get additional durability on power loss
+    connection
+        .batch_execute("PRAGMA synchronous = EXTRA")
+        .expect("Having more durable transactions must succeed");
+
     info!("Created database schema");
 
     connection
