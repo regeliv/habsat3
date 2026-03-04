@@ -24,7 +24,7 @@ impl Tape {
     }
 
     pub async fn extend(&mut self) -> tokio::io::Result<()> {
-        let extension_duty_cycle = PERIOD.mul_f32(0.07);
+        let extension_duty_cycle = PERIOD.mul_f32(0.05);
         let extension_time = Duration::from_secs(4);
 
         self.pwm.set_state(ActivationState::Disabled).await?;
@@ -37,8 +37,8 @@ impl Tape {
     }
 
     pub async fn retract(&mut self) -> tokio::io::Result<()> {
-        let retraction_duty_cycle = PERIOD.mul_f32(0.12);
-        let retraction_time = Duration::from_secs(3);
+        let retraction_duty_cycle = PERIOD.mul_f32(0.11);
+        let retraction_time = Duration::from_secs(6);
 
         self.pwm.set_state(ActivationState::Disabled).await?;
         self.pwm.set_duty_cycle(retraction_duty_cycle).await?;
