@@ -12,7 +12,6 @@ pub async fn lora_task(
     gps_rx: kanal::AsyncReceiver<Timestamped<tel0157::Tel0157Reading>>,
     key: [u8; 32],
 ) {
-    let mut counter = 0;
     loop {
         const SPI_FILE: &str = "/dev/spidev0.0";
 
@@ -28,14 +27,13 @@ pub async fn lora_task(
             continue;
         };
 
-        lora_run(radio, gps_rx.clone(), &mut counter, &key).await
+        lora_run(radio, gps_rx.clone(), &key).await
     }
 }
 
 pub async fn lora_run(
     mut radio: Sx1276,
     gps_rx: kanal::AsyncReceiver<Timestamped<tel0157::Tel0157Reading>>,
-    counter: &mut u32,
     key: &[u8; 32],
 ) {
     let mut stream = gps_rx.stream();
@@ -54,10 +52,10 @@ pub async fn lora_run(
             }
         }
 
+        let timestamp = data.timestamp.as_secs();
         let msg = RadioMsg::from(data);
 
-        *counter += 1;
-        if let Err(e) = radio.send(msg.encrypt(*counter, key).as_bytes()) {
+        if let Err(e) = radio.send(msg.encrypt(timestamp, key).as_bytes()) {
             warn!("Failed to send LoRa message: {e}");
             return;
         };
@@ -67,7 +65,6 @@ pub async fn lora_run(
 impl From<Timestamped<tel0157::Tel0157Reading>> for RadioMsg {
     fn from(value: Timestamped<tel0157::Tel0157Reading>) -> Self {
         Self {
-            timestamp: value.timestamp.as_secs(),
             latitude_degrees: value.data.latitude.get::<degree>(),
             longitude_degrees: value.data.longitude.get::<degree>(),
             course_over_ground_degrees: value.data.course_over_ground.get::<degree>(),
