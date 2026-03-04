@@ -40,8 +40,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             match parse_data(line.trim_end()) {
                 Err(e) => println!("Failed to parse data: {e}"),
                 Ok(msg) => {
-                    if let Some((counter, msg)) = RadioMsg::decrypt(&msg, &key) {
-                        println!("{counter}: {msg:?}")
+                    if let Some((timestamp, msg)) = RadioMsg::decrypt(&msg, &key) {
+                        println!("{timestamp}: {msg:?}")
                     }
                 }
             }

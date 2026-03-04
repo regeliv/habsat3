@@ -87,13 +87,14 @@ async fn main() {
         serde_json::from_str::<SensorConfig>(&file).unwrap()
     };
 
-    let key = std::env::var("LORA_ENCRYPTION_KEY")
-        .expect("LORA_ENCRYPTION_KEY environment variable must set to a 32-byte long string");
+    let key: [u8; 32] = {
+        let key = tokio::fs::read("lora_encryption_key")
+            .await
+            .expect("Failed to read `lora_encryption_key` file");
 
-    let key: [u8; 32] = key
-        .as_bytes()
-        .try_into()
-        .expect("Key must be exactly 32 bytes long");
+        key.try_into()
+            .expect("LoRa key must contain exactly 32 bytes")
+    };
 
     let tape_extension_time_offset = std::env::var("TAPE_EXTENSION_TIME_OFFSET").expect("TAPE_EXTENSION_TIME_OFFSET environment variable must be set to a positive integer representing the number of minutes");
     let tape_extension_time_offset = tape_extension_time_offset
