@@ -96,11 +96,16 @@ async fn main() {
             .expect("LoRa key must contain exactly 32 bytes")
     };
 
-    let tape_extension_time_offset = std::env::var("TAPE_EXTENSION_TIME_OFFSET").expect("TAPE_EXTENSION_TIME_OFFSET environment variable must be set to a positive integer representing the number of minutes");
-    let tape_extension_time_offset = tape_extension_time_offset
-        .parse::<u64>()
-        .expect("TAPE_EXTENSION_TIME_OFFSET must be a positive integer (minutes)");
-    let tape_extension_time_offset = Duration::from_secs(tape_extension_time_offset * 60);
+    let tape_extension_delay = {
+        const TAPE_DELAY_FILE: &str = "tape_extension_delay_seconds";
+        let delay = tokio::fs::read_to_string(&TAPE_DELAY_FILE)
+            .await
+            .unwrap_or_else(|_| panic!("Failed to read `{TAPE_DELAY_FILE}`"));
+
+        let delay = delay.parse::<u64>().expect("Failed to parse tape extension delay. The file cannot contain trailing whitespace and must contain a non-negative integer");
+
+        Duration::from_secs(delay)
+    };
 
     // I2C failures seem to interact badly with async filesystem operations on the same thread,
     // namely they seem to cause file `open` and file `read` to never be polled, thus blocking
@@ -135,7 +140,7 @@ async fn main() {
         i2c_pool.spawn_pinned(|| bmp280_task(rx_every_2s, bmp280_reading_channel.tx, true)),
         i2c_pool.spawn_pinned(move || lora_task(gps_channel.rx, key)),
         fall_detector(fall_data_channel.rx, fall_cancellation_token),
-        tape_control(fall_cancellation_child, tape_extension_time_offset),
+        tape_control(fall_cancellation_child, tape_extension_delay),
         data_collector(
             rx_channels,
             batch_channel.tx,
