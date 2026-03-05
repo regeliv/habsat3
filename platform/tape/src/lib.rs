@@ -1,5 +1,6 @@
 use std::time::Duration;
-use tokio::io::{AsyncSeekExt, AsyncWriteExt as _, ErrorKind, SeekFrom};
+use tokio::io::{self, AsyncSeekExt, AsyncWriteExt as _, ErrorKind, SeekFrom};
+use tracing::warn;
 
 const PWM_EXPORT_FILE: &str = "/sys/class/pwm/pwmchip0/export";
 const PWM_DUTY_CYCLE: &str = "/sys/class/pwm/pwmchip0/pwm0/duty_cycle";
@@ -65,22 +66,48 @@ struct Pwm {
 
 impl Pwm {
     async fn new() -> tokio::io::Result<Self> {
-        let mut opts = tokio::fs::OpenOptions::new();
+        let mut with_write_only = tokio::fs::OpenOptions::new();
 
-        opts.write(true).read(false);
+        with_write_only.write(true).read(false);
 
-        let duty_cycle_file = match opts.open(PWM_DUTY_CYCLE).await {
+        let duty_cycle_file = match with_write_only.open(PWM_DUTY_CYCLE).await {
             Ok(file) => file,
             Err(e) if e.kind() == ErrorKind::NotFound => {
-                opts.open(PWM_EXPORT_FILE).await?.write_all(b"0").await?;
+                with_write_only
+                    .open(PWM_EXPORT_FILE)
+                    .await
+                    .inspect_err(|e| warn!("Failed to open {PWM_EXPORT_FILE}: {e}"))?
+                    .write_all(b"0")
+                    .await
+                    .inspect_err(|e| warn!("Failed to export PWM: {e}"))?;
 
-                opts.open(PWM_DUTY_CYCLE).await?
+                let udev_status = tokio::process::Command::new("udevadm")
+                    .arg("settle")
+                    .status()
+                    .await
+                    .inspect_err(|e| warn!("Failed to settle udev: {e}"))?;
+
+                if udev_status.code().unwrap() != 0 {
+                    warn!("Failed to settle udev: {e}");
+                    return Err(io::Error::from(io::ErrorKind::Other));
+                }
+
+                with_write_only
+                    .open(PWM_DUTY_CYCLE)
+                    .await
+                    .inspect_err(|e| warn!("Failed to open {PWM_PERIOD}: {e}"))?
             }
             Err(e) => return Err(e),
         };
 
-        let period_file = opts.open(PWM_PERIOD).await?;
-        let enable_file = opts.open(PWM_ENABLE).await?;
+        let period_file = with_write_only
+            .open(PWM_PERIOD)
+            .await
+            .inspect_err(|e| warn!("Failed to open {PWM_PERIOD}: {e}"))?;
+        let enable_file = with_write_only
+            .open(PWM_ENABLE)
+            .await
+            .inspect_err(|e| warn!("Failed to open {PWM_ENABLE}: {e}"))?;
 
         Ok(Pwm {
             duty_cycle_file,
