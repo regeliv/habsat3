@@ -1,7 +1,7 @@
 //! https://m5stack.oss-cn-shenzhen.aliyuncs.com/resource/docs/products/module/Module-LoRa433_V1.1/sx1278.pdf
 use std::io::{self};
 
-use arbitrary_int::{u3, u4};
+use arbitrary_int::{u2, u3, u4};
 use bitbybit::{bitenum, bitfield};
 use spidev::{SpiModeFlags, Spidev, SpidevOptions, SpidevTransfer};
 use zerocopy::byteorder::big_endian;
@@ -22,6 +22,9 @@ mod addresses {
 
     #[expect(dead_code)]
     pub const LAST_RX_BYTES: u8 = 0x13;
+
+    pub const MODEM_CONFIG_1: u8 = 0x1D;
+    pub const MODEM_CONFIG_2: u8 = 0x1E;
 
     pub const PAYLOAD_LENGTH: u8 = 0x22;
 
@@ -57,6 +60,23 @@ impl Sx1276 {
         )?;
 
         sx1276.set_frequency(CarrierFrequency::mhz868())?;
+        sx1276.set_modem_config1(
+            RegModemConfig1::builder()
+                .with_bandwidth(BandWidth::Khz250)
+                .with_coding_rate(CodingRate::Cr4_5)
+                .with_header_mode(HeaderMode::Explicit)
+                .build(),
+        )?;
+
+        sx1276.set_modem_config2(
+            RegModemConfig2::builder()
+                .with_spreading_factor(SpreadingFactor::SF11)
+                .with_tx_mode(TxMode::Normal)
+                .with_payload_crc(false)
+                .with_symb_timeout_msb(u2::new(0u8))
+                .build(),
+        )?;
+
         sx1276.set_sync_word(0x12)?;
         sx1276.set_pa_config(
             RegPaConfig::builder()
@@ -153,6 +173,14 @@ impl Sx1276 {
     pub fn get_silicon_version(&mut self) -> io::Result<u8> {
         self.get_register(addresses::VERSION)
     }
+
+    fn set_modem_config1(&mut self, modem_config1: RegModemConfig1) -> io::Result<()> {
+        self.set_register(addresses::MODEM_CONFIG_1, modem_config1.raw_value())
+    }
+
+    fn set_modem_config2(&mut self, modem_config2: RegModemConfig2) -> io::Result<()> {
+        self.set_register(addresses::MODEM_CONFIG_2, modem_config2.raw_value())
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -215,6 +243,83 @@ struct RegPaConfig {
 
     #[bits(0..=3, rw)]
     output_power: u4,
+}
+
+#[derive(Debug)]
+#[bitenum(u4, exhaustive = false)]
+enum BandWidth {
+    Khz7_8 = 0b0000,
+    Khz10_4 = 0b0001,
+    Khz15_6 = 0b0010,
+    Khz20_8 = 0b0011,
+    Khz31_25 = 0b0100,
+    Khz41_7 = 0b0101,
+    Khz62_5 = 0b0110,
+    Khz125 = 0b0111,
+    Khz250 = 0b1000,
+    Khz500 = 0b1001,
+}
+
+#[derive(Debug)]
+#[bitenum(u3, exhaustive = false)]
+enum CodingRate {
+    Cr4_5 = 0b001,
+    Cr4_6 = 0b010,
+    Cr4_7 = 0b011,
+    Cr4_8 = 0b100,
+}
+
+#[derive(Debug)]
+#[bitenum(u1, exhaustive = true)]
+enum HeaderMode {
+    Explicit = 0,
+    Implicit = 1,
+}
+
+#[bitfield(u8, debug, default = 0)]
+struct RegModemConfig1 {
+    #[bits(4..=7, rw)]
+    bandwidth: Option<BandWidth>,
+
+    #[bits(1..=3, rw)]
+    coding_rate: Option<CodingRate>,
+
+    #[bit(0, rw)]
+    header_mode: HeaderMode,
+}
+
+#[derive(Debug)]
+#[bitenum(u4, exhaustive = false)]
+enum SpreadingFactor {
+    SF6 = 6,
+    SF7 = 7,
+    SF8 = 8,
+    SF9 = 9,
+    SF10 = 10,
+    SF11 = 11,
+    SF12 = 12,
+}
+
+#[derive(Debug)]
+#[bitenum(u1, exhaustive = true)]
+enum TxMode {
+    Normal = 0,
+    Continuous = 1,
+}
+
+#[bitfield(u8, debug, default = 0)]
+struct RegModemConfig2 {
+    #[bits(4..=7, rw)]
+    spreading_factor: Option<SpreadingFactor>,
+
+    #[bit(3, rw)]
+    tx_mode: TxMode,
+
+    #[bit(2, rw)]
+    payload_crc: bool,
+
+    #[bits(0..=1, rw)]
+    symb_timeout_msb: u2,
 }
 
 struct CarrierFrequency {
