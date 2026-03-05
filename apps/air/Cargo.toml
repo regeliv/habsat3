@@ -13,8 +13,8 @@ zerocopy.workspace = true
 uom.workspace = true
 i2cdev.workspace = true
 spidev.workspace = true
+tracing.workspace = true
 kanal = "0.1.1"
-tracing = "0.1.44"
 tracing-subscriber = "0.3.22"
 futures = "0.3.31"
 
