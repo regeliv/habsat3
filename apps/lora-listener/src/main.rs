@@ -26,11 +26,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut tty = TtyAdapter::new(port);
 
-    tty.write("AT+MODE=TEST\r\n").unwrap();
-    println!("{}", tty.read_line().unwrap().trim_end());
-
-    tty.write("AT+TEST=RXLRPKT\r\n").unwrap();
-    println!("{}", tty.read_line().unwrap().trim_end());
+    configure_lora(&mut tty);
 
     loop {
         let line = tty.read_line().unwrap();
@@ -47,6 +43,30 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
         };
     }
+}
+
+fn configure_lora(tty: &mut TtyAdapter) {
+    tty.write("AT+MODE=TEST\r\n").unwrap();
+    println!("{}", tty.read_line().unwrap().trim_end());
+
+    let frequency = 868;
+    let spreading_factor = 11;
+    let bandwidth = 250;
+    let tx_preamble = 8;
+    let rx_preamble = 8;
+    let power = 14;
+    let crc = "OFF";
+    let iq = "OFF";
+    let net = "OFF";
+
+    let cmd = format!(
+        "AT+TEST=RFCFG,{frequency},SF{spreading_factor},{bandwidth},{tx_preamble},{rx_preamble},{power},{crc},{iq},{net}\r\n"
+    );
+    tty.write(&cmd).unwrap();
+    println!("{}", tty.read_line().unwrap().trim_end());
+
+    tty.write("AT+TEST=RXLRPKT\r\n").unwrap();
+    println!("{}", tty.read_line().unwrap().trim_end());
 }
 
 fn parse_data(s: &str) -> Result<Vec<u8>, Box<dyn Error>> {

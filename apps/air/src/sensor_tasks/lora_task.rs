@@ -2,7 +2,7 @@ use common::RadioMsg;
 use futures::StreamExt as _;
 use lora::Sx1276;
 use spidev::Spidev;
-use tracing::warn;
+use tracing::{info, warn};
 use uom::si::{angle::degree, length::meter, velocity::meter_per_second};
 use zerocopy::IntoBytes as _;
 
@@ -38,6 +38,9 @@ pub async fn lora_run(
 ) {
     let mut stream = gps_rx.stream();
 
+    const THROTTLE: usize = 60;
+    let mut throttled = 0;
+
     while let Some(data) = stream.next().await {
         match radio.get_silicon_version() {
             Ok(0x12) => {}
@@ -52,13 +55,20 @@ pub async fn lora_run(
             }
         }
 
-        let timestamp = data.timestamp.as_secs();
-        let msg = RadioMsg::from(data);
+        throttled += 1;
+        throttled %= THROTTLE;
 
-        if let Err(e) = radio.send(msg.encrypt(timestamp, key).as_bytes()) {
-            warn!("Failed to send LoRa message: {e}");
-            return;
-        };
+        if throttled == 1 {
+            let timestamp = data.timestamp.as_secs();
+            let msg = RadioMsg::from(data);
+
+            if let Err(e) = radio.send(msg.encrypt(timestamp, key).as_bytes()) {
+                warn!("Failed to send LoRa message: {e}");
+                return;
+            } else {
+                info!("Sent LoRa message");
+            };
+        }
     }
 }
 
