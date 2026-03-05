@@ -1,9 +1,10 @@
 use bno_055::SensorConfig;
 use kanal::{AsyncReceiver, AsyncSender};
-use std::time::Duration;
+use std::{io::stdout, sync::Mutex, time::Duration};
 use system_sensors::{FilesystemUsageInfo, MemoryUsageInfo};
 use tokio_util::{sync::CancellationToken, task::LocalPoolHandle};
 use tracing::{Level, info};
+use tracing_subscriber::fmt::writer::MakeWriterExt;
 use uom::si::f64::ThermodynamicTemperature;
 
 use crate::{
@@ -38,12 +39,19 @@ impl<T> AsyncChannel<T> {
 
 #[tokio::main]
 async fn main() {
+    let log_file =
+        std::fs::File::create_new(format!("logs/{}.log", heartbeat::unix_time().as_secs_f64()))
+            .expect("Log file creation must succeed");
+
+    let file_and_stdout = Mutex::new(log_file).and(|| Box::new(stdout()));
+
     let subscriber = tracing_subscriber::fmt()
         .with_max_level(Level::DEBUG)
         .compact()
         .with_file(true)
         .with_line_number(true)
         .with_thread_ids(true)
+        .with_writer(file_and_stdout)
         .finish();
     tracing::subscriber::set_global_default(subscriber).unwrap();
 
